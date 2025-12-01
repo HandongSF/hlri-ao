@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_generic_services = true;
+option java_package = "edu.handong.csee.isel.proto";
+option java_outer_classname = "DataFeedingProto";
+
+service DataFeeding {
+    rpc GetData(AgentType) returns (Data);
+    rpc SendRawAction(RawAction) returns (Status);
+}
+
+enum AgentType {
+    AT_UNSPECIFIED = 0;
+    AT_ISA = 1;
+    AT_IUA = 2;
+    AT_IOA = 3;
+}
+
+// Data ISA
+message IMU {
+    // axis-1 or axis-3
+    float accel = 1;
+
+    // axis-1, axis-2, or axis-3
+    float angular = 2;
+
+    // axis-2 or axis-3
+    float mag_str_x = 3;
+    float mag_str_y = 4;
+}
+
+message UserCmd {
+    string target = 1;
+    string text = 2;
+}
+
+message DataISA {
+    bytes image = 1;
+    IMU imu = 2;
+    UserCmd user_cmd = 3;
+}
+
+// Data IUA
+message Voice {
+
+}
+
+message Tectile {
+
+}
+
+message DataIUA {
+    bytes image = 1;
+    Voice voice = 2;
+    Tectile tectile = 3;
+}
+
+message Data {
+    oneof AgentData {
+        DataISA data_ISA = 1;
+        DataIUA data_IUA = 2;
+    }
+}
+
+message RawActionISA {
+    float linear_x = 1;
+    float linear_y = 2;
+    float linear_z = 3;
+    float angular_x = 4;
+    float angular_y = 5;
+    float angular_z = 6;
+}
+
+message RawActionIUA {
+
+}
+
+message RawAction {
+    oneof AgentRawAction {
+        RawActionISA raw_action_ISA = 1;
+        RawActionIUA raw_action_IUA = 2;
+    }
+}
+
+enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_SUCCESS = 1;
+    STATUS_FAILURE = 2;
+}
