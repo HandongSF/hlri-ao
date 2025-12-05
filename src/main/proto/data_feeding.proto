@@ -59,7 +59,9 @@ message DataISA {
 }
 
 // Data IUA
-message Voice {}
+message Voice {
+
+}
 
 message Tectile {}
 
@@ -83,13 +85,21 @@ message Data {
 }
 
 // Raw action ISA
+message Linear {
+    float x = 1; 
+    float y = 2;
+    float z = 3;
+}
+
+message Angular {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
 message RawActionISA {
-    float linear_x = 1;
-    float linear_y = 2;
-    float linear_z = 3;
-    float angular_x = 4;
-    float angular_y = 5;
-    float angular_z = 6;
+    Linear linear = 1;
+    Angular angular = 2;
 }
 
 // Raw action IUA
