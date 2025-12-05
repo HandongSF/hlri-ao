@@ -1,4 +1,4 @@
-package edu.handong.csee.isel.network;
+package edu.handong.csee.isel.ao.network;
 
 import com.google.protobuf.Any;
 import com.google.rpc.Code;
