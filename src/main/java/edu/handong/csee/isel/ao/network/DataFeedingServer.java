@@ -42,11 +42,12 @@ public class DataFeedingServer {
 
             switch (request.getType()) {
                 case AT_UNSPECIFIED:
-                    handler.handle("The type of an agent is not specified",
-                                   Code.INVALID_ARGUMENT,
-                                   "AGENT_TYPE_UNSPECIFIED",
-                                   "ao.isel.csee.handong.edu",
-                                   responseObserver);
+                    handler.handle(
+                            "The type of an agent is not specified",
+                            Code.INVALID_ARGUMENT,
+                            "AGENT_TYPE_UNSPECIFIED",
+                            "ao.isel.csee.handong.edu",
+                            responseObserver);
                     
                     return;
 
@@ -70,11 +71,12 @@ public class DataFeedingServer {
                     break;
                 
                 case UNRECOGNIZED:
-                    handler.handle("Unknown error occured.", 
-                                   Code.UNKNOWN, 
-                                   "UNKNOWN_ERROR", 
-                                   "ao.isel.csee.handong.edu", 
-                                   responseObserver);
+                    handler.handle(
+                            "Unknown error occured.", 
+                            Code.UNKNOWN, 
+                            "UNKNOWN_ERROR", 
+                            "ao.isel.csee.handong.edu", 
+                            responseObserver);
 
                     return;
             }
@@ -90,11 +92,12 @@ public class DataFeedingServer {
 
             if (action.getAgentRawActionCase() 
                     == RawAction.AgentRawActionCase.AGENTRAWACTION_NOT_SET) {
-                handler.handle("Raw action from an agent is not set.", 
-                               Code.INVALID_ARGUMENT, 
-                               "AGENT_RAW_ACTION_NOT_SET", 
-                               "ao.isel.csee.handong.edu", 
-                               responseObserver);
+                handler.handle(
+                        "Raw action from an agent is not set.", 
+                        Code.INVALID_ARGUMENT, 
+                        "AGENT_RAW_ACTION_NOT_SET", 
+                        "ao.isel.csee.handong.edu", 
+                        responseObserver);
                         
                 return;
             }
