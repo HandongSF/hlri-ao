@@ -1,20 +1,18 @@
 package edu.handong.csee.isel.ao.network.server;
 
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
-
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.LinkedList;
 import java.util.Queue;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+
 import edu.handong.csee.isel.ao.network.ErrorHandler;
 import edu.handong.csee.isel.proto.*;
-import edu.handong.csee.isel.proto.Data.AgentDataCase;
 
 public class DataStoringServer {
     private Server server;
@@ -40,7 +38,7 @@ public class DataStoringServer {
                 @Override 
                 public void onNext(Data data) {
                     if (data.getAgentDataCase() 
-                            == AgentDataCase.AGENTDATA_NOT_SET) {
+                            == Data.AgentDataCase.AGENTDATA_NOT_SET) {
                         onError(new Exception("Agent data is not set."));
 
                         return;
@@ -77,6 +75,10 @@ public class DataStoringServer {
 
     public Server start() throws IOException {
         return server.start();
+    }
+
+    public int getPort() {
+        return server.getPort();
     }
 
     public Data getData() {
