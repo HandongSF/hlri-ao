@@ -1,0 +1,85 @@
+package edu.handong.csee.isel.ao.network.server;
+
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.util.LinkedList;
+import java.util.Queue;
+
+import com.google.rpc.Code;
+import com.google.rpc.Status;
+
+import edu.handong.csee.isel.ao.network.ErrorHandler;
+import edu.handong.csee.isel.proto.*;
+import edu.handong.csee.isel.proto.Data.AgentDataCase;
+
+public class DataStoringServer {
+    private Server server;
+    private DataStoringService service;
+    
+    public DataStoringServer(int port) {
+        service = new DataStoringService();
+        server = ServerBuilder.forPort(port)
+                              .addService(service)
+                              .build();
+    }
+    
+    private class DataStoringService 
+            extends DataStoringGrpc.DataStoringImplBase {
+        private Queue<Data> dataQueue = new LinkedList<>();
+        private ErrorHandler handler = new ErrorHandler();
+
+        @Override
+        public StreamObserver<Data> sendData(
+                StreamObserver<Status> responseObserver) {
+            return new StreamObserver<Data>() {
+                
+                @Override 
+                public void onNext(Data data) {
+                    if (data.getAgentDataCase() 
+                            == AgentDataCase.AGENTDATA_NOT_SET) {
+                        onError(new Exception("Agent data is not set."));
+
+                        return;
+                    }
+                    
+                    dataQueue.add(data);
+                }
+
+                @Override 
+                public void onError(Throwable t) {
+                    handler.handle(
+                            t.getMessage(), 
+                            Code.INVALID_ARGUMENT, 
+                            "AGENT_DATA_NOT_SET", 
+                            "ao.isel.csee.handong.edu", 
+                            responseObserver);
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onNext(
+                            Status.newBuilder()
+                                  .setCode(Code.OK_VALUE)
+                                  .build());
+                    responseObserver.onCompleted();
+                }
+            };    
+        }
+        
+        public Data getData() {
+            return dataQueue.peek();
+        }
+    }
+
+    public Server start() throws IOException {
+        return server.start();
+    }
+
+    public Data getData() {
+        return service.getData();
+    }
+}
