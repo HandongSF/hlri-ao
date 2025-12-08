@@ -97,7 +97,7 @@ public class DataStoringClient {
         imus.add(rgbd);
     }
 
-    public void addRGBD(UserCmd cmd) {
+    public void addUserCmd(UserCmd cmd) {
         cmds.add(cmd);
     }
 
