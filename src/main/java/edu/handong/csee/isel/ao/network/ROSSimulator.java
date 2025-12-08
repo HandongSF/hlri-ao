@@ -16,7 +16,8 @@ public class ROSSimulator {
     private volatile boolean running = false;
     private Thread videoThread;
 
-    // JavaCV 관련
+    private String videoSource = "video.mp4";
+
     private FFmpegFrameGrabber grabber;
     private Java2DFrameConverter converter = new Java2DFrameConverter();
 
@@ -29,14 +30,14 @@ public class ROSSimulator {
 
         videoThread = new Thread(() -> {
             try {
-                // 0 → 기본 웹캠 (필요하면 RTSP 또는 파일 경로 등으로 변경)
-                grabber = new FFmpegFrameGrabber(0);
+
+                grabber = createGrabber(videoSource);
                 grabber.start();
 
                 while (running) {
                     Frame frame = grabber.grab();
                     if (frame == null) {
-                        System.out.println("[ROSSimulator] 더 이상 프레임 없음");
+                        System.out.println("No more frame");
                         break;
                     }
 
@@ -47,7 +48,6 @@ public class ROSSimulator {
                     // BufferedImage → JPEG byte[]
                     byte[] frameBytes = encodeToJpeg(image);
 
-                    // 요청한 방식: notifySubscriber() 사용
                     notifySubscriber(frameBytes);
                 }
 
@@ -60,6 +60,17 @@ public class ROSSimulator {
         }, "JavaCV-Video-Thread");
 
         videoThread.start();
+    }
+
+    private FFmpegFrameGrabber createGrabber(String source) {
+        try {
+            // 숫자라면 카메라 인덱스로 사용 (예: "0")
+            int camIndex = Integer.parseInt(source);
+            return new FFmpegFrameGrabber(camIndex);
+        } catch (NumberFormatException e) {
+            // 숫자가 아니라면 파일명 or RTSP URL임
+            return new FFmpegFrameGrabber(source);
+        }
     }
 
     public void stop() {
@@ -79,13 +90,25 @@ public class ROSSimulator {
         return baos.toByteArray();
     }
 
-    /**
-     *  요청사항 ― image만 전송하고 나머지는 모두 null로 고정하는 메서드
-     */
     private void notifySubscriber(byte[] imageBytes) {
         subscriber.update(
-                imageBytes
+                imageBytes,   // image
+                null,         // depth
+                null,         // acceleration
+                null,         // angular
+                null,         // mag_str_x
+                null,         // mag_str_y
+                null,         // target
+                null          // text
         );
+    }
+
+    public void setVideoSource(String path) {
+        this.videoSource = path;
+    }
+
+    public String getVideoSource() {
+        return videoSource;
     }
 
     public void sendAction(String action) {
