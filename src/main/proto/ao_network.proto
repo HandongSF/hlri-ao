@@ -63,7 +63,9 @@ message DataISA {
 
 // Data IUA
 message Voice {
-
+    bytes header = 1;
+    bytes format = 2;
+    bytes data = 3;
 }
 
 message Tectile {}
