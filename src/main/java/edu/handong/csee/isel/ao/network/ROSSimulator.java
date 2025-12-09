@@ -116,4 +116,5 @@ public class ROSSimulator {
     public void sendAction(String action) {
         System.out.print(action);
     }
+
 }
