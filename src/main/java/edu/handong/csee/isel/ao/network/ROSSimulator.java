@@ -30,7 +30,6 @@ public class ROSSimulator {
 
         videoThread = new Thread(() -> {
             try {
-
                 grabber = createGrabber(videoSource);
                 grabber.start();
 
@@ -41,6 +40,9 @@ public class ROSSimulator {
                         break;
                     }
 
+                    long timestampUs = grabber.getTimestamp();
+                    long timestampMs = timestampUs / 1000;  // ms단위를 위해
+
                     // Frame → BufferedImage
                     BufferedImage image = converter.convert(frame);
                     if (image == null) continue;
@@ -48,7 +50,8 @@ public class ROSSimulator {
                     // BufferedImage → JPEG byte[]
                     byte[] frameBytes = encodeToJpeg(image);
 
-                    notifySubscriber(frameBytes);
+                    // image + video timestamp
+                    notifySubscriber(frameBytes, timestampMs);
                 }
 
                 grabber.stop();
@@ -63,14 +66,7 @@ public class ROSSimulator {
     }
 
     private FFmpegFrameGrabber createGrabber(String source) {
-        try {
-            // 숫자라면 카메라 인덱스로 사용 (예: "0")
-            int camIndex = Integer.parseInt(source);
-            return new FFmpegFrameGrabber(camIndex);
-        } catch (NumberFormatException e) {
-            // 숫자가 아니라면 파일명 or RTSP URL임
-            return new FFmpegFrameGrabber(source);
-        }
+        return new FFmpegFrameGrabber(source);
     }
 
     public void stop() {
@@ -90,16 +86,22 @@ public class ROSSimulator {
         return baos.toByteArray();
     }
 
-    private void notifySubscriber(byte[] imageBytes) {
+    private void notifySubscriber(byte[] imageBytes, long timestampMs) {
+        // timestamp를 문자열로 변환해서 text 필드에 넣음
+        String tsString = Long.toString(timestampMs);
+
         subscriber.update(
-                imageBytes,   // image
-                null,         // depth
-                null,         // acceleration
-                null,         // angular
-                null,         // mag_str_x
-                null,         // mag_str_y
-                null,         // target
-                null          // text
+                imageBytes,   // byte[] image
+                null,         // byte[] depth
+                0f,           // float acceleration
+                0f,           // float angular
+                0f,           // float mag_str_x
+                0f,           // float mag_str_y
+                null,         // String target
+                tsString,     //String text: 영상 타임스탬프(ms)
+                null,         // byte[] extra1
+                null,         // byte[] extra2
+                null          // byte[] extra3
         );
     }
 
