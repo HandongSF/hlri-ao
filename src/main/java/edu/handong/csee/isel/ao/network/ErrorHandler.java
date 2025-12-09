@@ -20,10 +20,11 @@ public class ErrorHandler {
     public void handle(String message, Code code, 
                        String reason, String domain,
                        StreamObserver<?> responseObserver) {
-        Any detail = Any.pack(ErrorInfo.newBuilder()
-                                       .setReason(reason)
-                                       .setDomain(domain)
-                                       .build());
+        Any detail = Any.pack(
+                ErrorInfo.newBuilder()
+                         .setReason(reason)
+                         .setDomain(domain)
+                         .build());
         responseObserver.onError(
                 StatusProto.toStatusRuntimeException(
                         com.google.rpc.Status.newBuilder()
