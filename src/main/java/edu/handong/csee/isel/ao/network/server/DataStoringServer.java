@@ -27,7 +27,7 @@ public class DataStoringServer {
     
     private class DataStoringService 
             extends DataStoringGrpc.DataStoringImplBase {
-        private Queue<Data> dataQueue = new LinkedList<>();
+        private Queue<Data> queue = new LinkedList<>();
         private ErrorHandler handler = new ErrorHandler();
 
         @Override
@@ -44,7 +44,7 @@ public class DataStoringServer {
                         return;
                     }
                     
-                    dataQueue.add(data);
+                    queue.add(data);
                 }
 
                 @Override 
@@ -69,12 +69,18 @@ public class DataStoringServer {
         }
         
         public Data getData() {
-            return dataQueue.peek();
+            while (queue.isEmpty());
+
+            return queue.poll();
         }
     }
 
     public Server start() throws IOException {
         return server.start();
+    }
+
+    public void shutdown() throws InterruptedException {
+        server.shutdown().awaitTermination();
     }
 
     public int getPort() {
