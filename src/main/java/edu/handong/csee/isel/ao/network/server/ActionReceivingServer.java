@@ -89,20 +89,12 @@ public class ActionReceivingServer {
 
     }
 
-    public void start() throws IOException {
-        server.start();
-    }
-
-    public void shutdownNow() {
-        server.shutdownNow();
-    }
-
-    public void notifySubscriber(
+    private void notifySubscriber(
             AgentInfo.AgentType type, String host, int port) {
         subscriber.update(type, host, port);
     }
 
-    public void notifySubscriber(RawAction action) {
+    private void notifySubscriber(RawAction action) {
         switch (action.getAgentRawActionCase()) {
             case RAW_ACTION_ISA:
                 RawActionISA actionISA = action.getRawActionISA();
@@ -121,11 +113,16 @@ public class ActionReceivingServer {
                 break;
 
             case RAW_ACTION_IOA:
-                subscriber.update();
-                
-                break;
-
+            
             default:
         }
+    }
+
+    public void start() throws IOException {
+        server.start();
+    }
+
+    public void shutdown() throws InterruptedException {
+        server.shutdown().awaitTermination();
     }
 }
