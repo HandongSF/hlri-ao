@@ -1,7 +1,10 @@
 package edu.handong.csee.isel.ao.network.client;
 
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 import com.google.rpc.Status;
 
@@ -12,16 +15,13 @@ import io.grpc.stub.StreamObserver;
 import edu.handong.csee.isel.proto.*;
 
 public class DataStoringClient {
-    private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs;
-    private Queue<RGBD> rgbds;
-    private Queue<IMU> imus;
-    private Queue<UserCmd> cmds;
-    private Queue<Voice> voices;
-    private Queue<Tectile> tectiles;
+    private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs 
+            = new HashMap<>();
+    private Map<AgentInfo.AgentType, Queue<Data>> queues = new HashMap<>();
     
-    public void sendData(AgentInfo.AgentType key, int frames) {
-        if (key == AgentInfo.AgentType.AT_UNSPECIFIED 
-                || key == AgentInfo.AgentType.UNRECOGNIZED) {
+    public void sendData(AgentInfo.AgentType type, int frames) {        
+        if (type == AgentInfo.AgentType.AT_UNSPECIFIED 
+                || type == AgentInfo.AgentType.UNRECOGNIZED) {
             return;
         }
         
@@ -44,39 +44,15 @@ public class DataStoringClient {
         };
 
         StreamObserver<Data> requestObserver 
-                = stubs.get(key).sendData(responseObserver);
-        Data.Builder dataBuilder = Data.newBuilder();
+                = stubs.get(type).sendData(responseObserver);
+        Queue<Data> queue = queues.get(type);
+        int sent = 0;
 
-        switch (key) {
-            case AT_ISA:
-                DataISA.Builder dataISABuilder 
-                        = dataBuilder.getDataISABuilder();
-
-                for (int i = 1; i <= frames; i++) {
-                    dataISABuilder.setRgbd(rgbds.peek())
-                                  .setImu(imus.peek())
-                                  .setCmd(cmds.peek());
-                    requestObserver.onNext(dataBuilder.build());
-                }
-
-                break;
-            
-            case AT_IUA:
-                DataIUA.Builder dataIUABuilder 
-                        = dataBuilder.getDataIUABuilder();
-
-                for (int i = 1; i <= frames; i++) {
-                    dataIUABuilder.setRgbd(rgbds.peek())
-                                  .setVoice(voices.peek())
-                                  .setTectile(tectiles.peek());
-                    requestObserver.onNext(dataBuilder.build());
-                }
-
-                break;
-            
-            case AT_IOA:
-
-            default:
+        while (sent < frames) {
+            if (queue.peek() != null) {
+                requestObserver.onNext(queue.poll());
+                sent++;
+            } 
         }
 
         requestObserver.onCompleted();
@@ -87,31 +63,19 @@ public class DataStoringClient {
                 key, 
                 DataStoringGrpc.newStub(
                         ManagedChannelBuilder.forAddress(host, port).build()));
+        queues.put(key, new LinkedList<Data>());
     }
 
-    public void addRGBD(RGBD rgbd) {
-        rgbds.add(rgbd);
+    public void addData(AgentInfo.AgentType type, Data data) {
+        queues.get(type).add(data);
     }
 
-    public void addIMU(IMU rgbd) {
-        imus.add(rgbd);
-    }
-
-    public void addUserCmd(UserCmd cmd) {
-        cmds.add(cmd);
-    }
-
-    public void addVoice(Voice voice) {
-        voices.add(voice);
-    }
-
-    public void addTectile(Tectile tectile) {
-        tectiles.add(tectile);
-    }
-
-    public void shutdownNow() {
+    public void shutdown() throws InterruptedException {
         for (DataStoringGrpc.DataStoringStub stub : stubs.values()) {
-            ((ManagedChannel) stub.getChannel()).shutdownNow();    
+            ((ManagedChannel) stub.getChannel()).shutdown()
+                                                .awaitTermination(
+                                                        10, 
+                                                        TimeUnit.MILLISECONDS);
         }
     }
 }
