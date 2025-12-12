@@ -3,6 +3,7 @@ package edu.handong.csee.isel.ao.network.server;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -32,7 +33,7 @@ public class DataStoringServer {
     
     private class DataStoringService 
             extends DataStoringGrpc.DataStoringImplBase {
-        private Queue<Data> queue = new LinkedList<>();
+        private Queue<Data> queue = new ConcurrentLinkedQueue<>();
         private ErrorHandler handler = new ErrorHandler();
 
         @Override
@@ -75,9 +76,7 @@ public class DataStoringServer {
         }
         
         public Data getData() {
-            while (queue.isEmpty()) {
-                System.out.println(queue.isEmpty());
-            };
+            while (queue.isEmpty());
 
             return queue.poll();
         }
