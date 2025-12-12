@@ -27,8 +27,9 @@ public class AgentISA extends Agent {
 
     @Override
     protected RawAction calcRawAction(Data data) {
-        System.out.println("test");
-        return RawAction.getDefaultInstance();
+        return RawAction.newBuilder()
+                        .setRawActionISA(RawActionISA.getDefaultInstance())
+                        .build();
     }
 
     public static void main(String[] args) {
