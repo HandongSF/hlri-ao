@@ -30,7 +30,7 @@ public class ErrorHandler {
                         com.google.rpc.Status.newBuilder()
                                              .setMessage(message)     
                                              .setCode(code.getNumber())
-                                             .setDetails(0, detail)
+                                             .addDetails(detail)
                                              .build()));
     }
 }
