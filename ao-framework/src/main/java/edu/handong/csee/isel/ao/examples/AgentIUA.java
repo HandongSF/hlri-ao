@@ -5,6 +5,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 
+import javax.xml.crypto.Data;
+
 import edu.handong.csee.isel.ao.Agent;
 import edu.handong.csee.isel.proto.*;
 
@@ -26,7 +28,9 @@ public class AgentIUA extends Agent {
 
     @Override
     protected RawAction calcRawAction(Data data) {
-        return RawAction.getDefaultInstance();
+        return RawAction.newBuilder()
+                        .setRawActionIUA(RawActionIUA.getDefaultInstance())
+                        .build();
     }
 
     public static void main(String[] args) {
