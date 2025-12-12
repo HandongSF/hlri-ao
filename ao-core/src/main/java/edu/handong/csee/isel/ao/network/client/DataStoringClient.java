@@ -1,10 +1,11 @@
 package edu.handong.csee.isel.ao.network.client;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.rpc.Status;
 
@@ -21,10 +22,11 @@ public class DataStoringClient {
     private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs 
             = new HashMap<>();
     private Map<AgentInfo.AgentType, Queue<Data>> queues = Map.of(
-            AgentInfo.AgentType.AT_ISA, new LinkedList<>(),
-            AgentInfo.AgentType.AT_IUA, new LinkedList<>(),
-            AgentInfo.AgentType.AT_IOA, new LinkedList<>());
+            AgentInfo.AgentType.AT_ISA, new ConcurrentLinkedQueue<>(),
+            AgentInfo.AgentType.AT_IUA, new ConcurrentLinkedQueue<>(),
+            AgentInfo.AgentType.AT_IOA, new ConcurrentLinkedQueue<>());
     private Logger logger = LoggerFactory.getLogger(getClass());
+    private int count = 0;
     
     public void sendData(AgentInfo.AgentType type, int frames) {
         logger.info("Sending data to Agent client");        
@@ -33,6 +35,7 @@ public class DataStoringClient {
             return;
         }
         
+        CountDownLatch latch = new CountDownLatch(1);
         StreamObserver<Status> responseObserver = new StreamObserver<>() {
         
             @Override
@@ -47,23 +50,28 @@ public class DataStoringClient {
 
             @Override 
             public void onCompleted() {
-
+                latch.countDown();
             }
         };
-        
         StreamObserver<Data> requestObserver 
                 = stubs.get(type).sendData(responseObserver);
         Queue<Data> queue = queues.get(type);
         int sent = 0;
 
         while (sent < frames) {
-            if (queue.peek() != null) {
+            if (!queue.isEmpty()) {
                 requestObserver.onNext(queue.poll());
                 sent++;
             } 
         }
 
         requestObserver.onCompleted();
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void addStub(AgentInfo.AgentType key, String host, int port) {
@@ -78,6 +86,9 @@ public class DataStoringClient {
 
     public void addData(AgentInfo.AgentType type, Data data) {
         queues.get(type).add(data);
+        if (++count % 30 == 0) {
+            System.out.println("add data");
+        }
     }
 
     public void shutdown() throws InterruptedException {
