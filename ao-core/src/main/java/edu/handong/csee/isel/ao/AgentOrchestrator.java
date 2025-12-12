@@ -17,8 +17,7 @@ import edu.handong.csee.isel.ao.network.ROSSimulator;
 import edu.handong.csee.isel.ao.network.client.DataStoringClient;
 import edu.handong.csee.isel.ao.network.server.ActionReceivingServer;
 import edu.handong.csee.isel.ao.policy.Router;
-import edu.handong.csee.isel.ao.util.ConfigExtractor;
-import edu.handong.csee.isel.ao.util.ConfigExtractor;
+import edu.handong.csee.isel.ao.utils.ConfigExtractor;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentOrchestrator implements AutoCloseable {
