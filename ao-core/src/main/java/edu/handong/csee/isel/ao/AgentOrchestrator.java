@@ -69,7 +69,7 @@ public class AgentOrchestrator implements AutoCloseable {
         Thread thread;
         
         client.addStub(type, host, port);
-        /** 
+        
         thread = new Thread(
                 () -> { 
                     while (!Thread.interrupted()) {
@@ -79,10 +79,6 @@ public class AgentOrchestrator implements AutoCloseable {
                 });
         threads.add(thread);
         thread.start();
-        **/
-        while (true) {
-            client.sendData(type, 30);
-        }
     }
 
     public void update(
