@@ -1,0 +1,68 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>edu.handong.csee.isel.ao</groupId>
+        <artifactId>ao-java</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <groupId>edu.handong.csee.isel.ao</groupId>
+    <artifactId>ao-framework</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentISA</exec.mainClass>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- clean plugin -->
+            <!-- exclude cleaning class files -->
+            <!-- execute goal `clean` in the clean phase of the clean -->
+            <!-- lifecylcle -->
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.5.0</version>
+
+                <configuration>
+                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                    <filesets>
+                        <fileset>
+                            <directory>${basedir}/target</directory>
+                        </fileset>
+                    </filesets>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- protobuf plugin -->
+            <!-- generate protobuf message and grpc stub source code from -->
+            <!-- proto files -->
+            <!-- execute goal `generate` in the generate-resources phase of -->
+            <!-- the default lifecylcle -->
+            <plugin>
+                <groupId>io.github.ascopes</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>4.1.1</version>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>     
+            </plugin>
+        </plugins>
+    </build>
+</project>
