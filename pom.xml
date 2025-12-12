@@ -3,22 +3,28 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.example.grpc</groupId>
-    <artifactId>grpc-video-java</artifactId>
+    
+    <groupId>edu.handong.csee.isel.ao</groupId>
+    <artifactId>ao-java</artifactId>
     <version>1.0.0</version>
-
+    <packaging>pom</packaging>
+    
     <properties>
         <java.version>17</java.version>
-        <grpc.version>1.63.0</grpc.version>
-        <protobuf.version>3.25.5</protobuf.version>
-
-        <javacv.version>1.5.10</javacv.version>
-
+        <grpc.version>1.77.0</grpc.version>
+        <protobuf.version>3.25.8</protobuf.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <modules>
+        <module>ao-core</module>
+        <module>ao-framework</module>
+    </modules>
+
     <dependencies>
+        <!-- grpc -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
@@ -34,70 +40,71 @@
             <artifactId>grpc-stub</artifactId>
             <version>${grpc.version}</version>
         </dependency>
-
+        <!-- protobuf -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.apache.tomcat</groupId>
-            <artifactId>annotations-api</artifactId>
-            <version>6.0.53</version>
-            <scope>provided</scope>
-        </dependency>
-
+        <!-- javacv -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>javacv-platform</artifactId>
-            <version>${javacv.version}</version>
+            <version>1.5.9</version>
         </dependency>
-
+        <!-- slf4j -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.13</version>
         </dependency>
+        <!-- javax annotation -->
+        <!-- for generated sources -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>jsr250-api</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
-
+    
     <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>1.7.1</version>
-            </extension>
-        </extensions>
+        <outputDirectory>${basedir}/../target/classes</outputDirectory>
 
         <plugins>
+            <!-- protobuf plugin -->
+            <!-- generate protobuf message and grpc stub source code from -->
+            <!-- proto files -->
             <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
+                <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
-                <configuration>
-                    <protocArtifact>
-                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-                    </protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>
-                        io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
-                    </pluginArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+                <version>4.1.1</version>
 
+                <configuration>
+                    <protoc>${protobuf.version}</protoc>
+                    <sourceDirectories>
+                        <sourceDirectory>${basedir}/../ao-proto/src/main/proto</sourceDirectory>
+                    </sourceDirectories>
+                    <outputDirectory>${basedir}/../target</outputDirectory>
+                    <plugins>
+                        <plugin kind="binary-maven">
+                            <groupId>io.grpc</groupId>
+                            <artifactId>protoc-gen-grpc-java</artifactId>
+                            <version>${grpc.version}</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
+            </plugin>
+            <!-- exec plugin -->
+            <!-- execute main class -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
+
+                <configuration>
+                    <mainClass>${exec.mainClass}</mainClass>
+                    <addResourcesToClasspath>true</addResourcesToClasspath>
+                </configuration>
             </plugin>
         </plugins>
     </build>
