@@ -28,12 +28,25 @@ public class ROSSimulator {
     public void start() {
         running = true;
 
+        final double TARGET_FPS = 15.0;
+        final long FRAME_INTERVAL_MS = (long)(1000.0 / TARGET_FPS);
+
         videoThread = new Thread(() -> {
             try {
                 grabber = createGrabber(videoSource);
                 grabber.start();
 
+                long startTime = System.currentTimeMillis();
+                long lastLogTime = startTime;
+                int frameCount = 0;
+
+                long sumWorkMs = 0;
+                int framesThisSec = 0;
+
                 while (running) {
+
+                    long loopStart = System.currentTimeMillis();
+
                     Frame frame = grabber.grab();
                     if (frame == null) {
                         System.out.println("No more frame");
@@ -41,17 +54,47 @@ public class ROSSimulator {
                     }
 
                     long timestampUs = grabber.getTimestamp();
-                    long timestampMs = timestampUs / 1000;  // ms단위를 위해
+                    long timestampMs = timestampUs / 1000;
 
-                    // Frame → BufferedImage
                     BufferedImage image = converter.convert(frame);
                     if (image == null) continue;
 
-                    // BufferedImage → JPEG byte[]
                     byte[] frameBytes = encodeToJpeg(image);
-
-                    // image + video timestamp
                     notifySubscriber(frameBytes, timestampMs);
+
+                    frameCount++;
+                    framesThisSec++;
+
+                    long now = System.currentTimeMillis();
+                    long workMs = now - loopStart;
+                    sumWorkMs += workMs;
+
+                    if (now - lastLogTime >= 1000) {
+                        long elapsedSeconds = (now - startTime) / 1000;
+                        double avgWorkMs = framesThisSec > 0
+                                ? (double) sumWorkMs / framesThisSec
+                                : 0.0;
+
+                        System.out.printf(
+                                "[ROS] %d초 경과 - %d 프레임 전송 (avg frame=%.2f ms)%n",
+                                elapsedSeconds, frameCount, avgWorkMs
+                        );
+
+                        lastLogTime = now;
+                        sumWorkMs = 0;
+                        framesThisSec = 0;
+                    }
+
+                    long loopElapsed = System.currentTimeMillis() - loopStart;
+                    long sleepTime = FRAME_INTERVAL_MS - loopElapsed;
+
+                    if (sleepTime > 0) {
+                        try {
+                            Thread.sleep(sleepTime);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                 }
 
                 grabber.stop();
@@ -64,6 +107,8 @@ public class ROSSimulator {
 
         videoThread.start();
     }
+
+
 
     private FFmpegFrameGrabber createGrabber(String source) {
         return new FFmpegFrameGrabber(source);
@@ -89,6 +134,9 @@ public class ROSSimulator {
     private void notifySubscriber(byte[] imageBytes, long timestampMs) {
         // timestamp를 문자열로 변환해서 text 필드에 넣음
         String tsString = Long.toString(timestampMs);
+        if (subscriber == null) {
+            return;
+        }
 
         subscriber.update(
                 imageBytes,   // byte[] image
@@ -118,3 +166,6 @@ public class ROSSimulator {
     }
 
 }
+
+
+
