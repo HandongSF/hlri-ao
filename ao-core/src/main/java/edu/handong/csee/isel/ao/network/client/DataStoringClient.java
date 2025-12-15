@@ -21,12 +21,8 @@ import edu.handong.csee.isel.proto.*;
 public class DataStoringClient {
     private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs 
             = new HashMap<>();
-    private Map<AgentInfo.AgentType, Queue<Data>> queues = Map.of(
-            AgentInfo.AgentType.AT_ISA, new ConcurrentLinkedQueue<>(),
-            AgentInfo.AgentType.AT_IUA, new ConcurrentLinkedQueue<>(),
-            AgentInfo.AgentType.AT_IOA, new ConcurrentLinkedQueue<>());
+    private Map<AgentInfo.AgentType, Queue<Data>> queues = new HashMap<>();
     private Logger logger = LoggerFactory.getLogger(getClass());
-    private int count = 0;
     
     public void sendData(AgentInfo.AgentType type, int frames) {
         logger.info("Sending data to Agent client");        
@@ -82,12 +78,14 @@ public class DataStoringClient {
                         ManagedChannelBuilder.forAddress(host, port)
                                              .usePlaintext()
                                              .build()));
+        queues.put(key, new ConcurrentLinkedQueue<>());
     }
 
     public void addData(AgentInfo.AgentType type, Data data) {
-        queues.get(type).add(data);
-        if (++count % 30 == 0) {
-            System.out.println("add data");
+        Queue<Data> queue = queues.get(type);
+
+        if (queue != null) {
+            queue.add(data);
         }
     }
 
