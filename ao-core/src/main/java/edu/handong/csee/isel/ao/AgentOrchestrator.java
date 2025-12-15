@@ -45,6 +45,7 @@ public class AgentOrchestrator implements AutoCloseable {
 
     public void run() throws IOException, InterruptedException {
         Runtime runtime = Runtime.getRuntime();
+         
         Thread shutdownHook = new Thread(
                 () -> { 
                     try {
@@ -56,7 +57,7 @@ public class AgentOrchestrator implements AutoCloseable {
                 "shutdown-hook");
         
         runtime.addShutdownHook(shutdownHook);
-
+        
         simulator.start();
         server.start();
         server.awaitTermination(10, TimeUnit.MINUTES);
@@ -202,7 +203,7 @@ public class AgentOrchestrator implements AutoCloseable {
                                                    .toURI()))) {
             ao.run();
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(); 
         }
     }
 }
