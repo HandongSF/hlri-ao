@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package ao.network;
+
+import "google/rpc/status.proto";
+
+option java_multiple_files = true;
+option java_generic_services = true;
+option java_package = "edu.handong.csee.isel.proto";
+option java_outer_classname = "AONetworkProto";
+
+service DataStoring {
+    rpc SendData(stream Data) returns (google.rpc.Status);
+}
+
+service ActionReceiving {
+    rpc Connect(AgentInfo) returns (google.rpc.Status);
+    rpc SendRawAction(RawAction) returns (google.rpc.Status);
+}
+
+// Enumeration
+message AgentInfo {
+    enum AgentType {
+        AT_UNSPECIFIED = 0;
+        AT_ISA = 1;
+        AT_IUA = 2;
+        AT_IOA = 3;
+    }
+
+    AgentType type = 1;
+    string host = 2;
+    int32 port = 3;
+}
+
+// Data ISA
+message IMU {
+    // axis-1 or axis-3
+    float accel = 1;
+    // axis-1, axis-2, or axis-3
+    float angular = 2;
+    // axis-2 or axis-3
+    float mag_str_x = 3;
+    float mag_str_y = 4;
+}
+
+message RGBD {
+    bytes image = 1;
+    bytes depth = 2; 
+}
+
+message UserCmd {
+    string target = 1;
+    string text = 2;
+}
+
+message DataISA {
+    RGBD rgbd = 1;
+    IMU imu = 2;
+    UserCmd cmd = 3;
+}
+
+// Data IUA
+message Voice {
+    bytes header = 1;
+    bytes format = 2;
+    bytes data = 3;
+}
+
+message Tectile {}
+
+message DataIUA {
+    RGBD rgbd = 1;
+    Voice voice = 2;
+    Tectile tectile = 3;
+}
+
+// Data IOA
+message DataIOA {
+    RGBD rgbd = 1;
+}
+
+// Data overall
+message Data {
+    oneof agent_data {
+        DataISA data_isa = 1;
+        DataIUA data_iua = 2;
+        DataIOA data_ioa = 3;
+    } 
+
+    // for evaluation
+    int32 frame_num = 4;
+}
+
+// Raw action ISA
+message Linear {
+    float x = 1; 
+    float y = 2;
+    float z = 3;
+}
+
+message Angular {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message RawActionISA {
+    ao.network.Linear linear = 1;
+    Angular angular = 2;
+}
+
+// Raw action IUA
+message RawActionIUA {
+    string speech = 1;
+}
+
+// Raw action IOA
+message Coordinate {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message RawActionIOA {
+    enum Interaction {
+        INTR_UNSPECIFIED = 0;
+        INTR_PICK_UP = 1;
+        INTR_PUT_DOWN = 2;
+    }
+
+    RawActionIOA.Interaction intr = 1;
+    Coordinate coord = 2;
+}
+
+// Raw action overall
+message RawAction {
+    oneof agent_raw_action {
+        RawActionISA raw_action_isa = 1;
+        RawActionIUA raw_action_iua = 2;
+        RawActionIOA raw_action_ioa = 3;
+    }
+
+    // for evaluation
+    int32 frame_num = 4;
+}
