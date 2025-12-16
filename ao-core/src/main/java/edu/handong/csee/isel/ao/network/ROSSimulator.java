@@ -195,14 +195,4 @@ public class ROSSimulator {
         System.out.print(action);
     }
 
-    public static void main(String[] args) throws Exception {
-        ROSSimulator simulator = new ROSSimulator(null);
-        simulator.setVideoSource("video.mp4");
-        simulator.start();
-        System.out.println("ROS Simulator started. Press ENTER to stop.");
-        System.in.read();
-        System.out.println("Stopping ROS Simulator...");
-        simulator.stop();
-        System.out.println("Stopped.");
-    }
 }
