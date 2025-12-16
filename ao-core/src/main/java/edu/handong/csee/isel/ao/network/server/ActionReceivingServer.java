@@ -38,7 +38,7 @@ public class ActionReceivingServer {
         public void connect(
                 AgentInfo request, 
                 StreamObserver<Status> responseObserver) {
-            logger.info("Receiving connection request from Agent client");
+            logger.info("Receiving connection request from an Agent");
             AgentInfo.AgentType type = request.getType();
 
             if (type == AgentInfo.AgentType.AT_UNSPECIFIED) {
@@ -61,7 +61,7 @@ public class ActionReceivingServer {
                 return;
             }
 
-            notifySubscriber(type, request.getHost(), request.getPort());
+            notifySubscriber(request);
 
             responseObserver.onNext(
                     Status.newBuilder()
@@ -72,20 +72,8 @@ public class ActionReceivingServer {
 
         @Override 
         public void sendRawAction(
-                RawAction action, StreamObserver<Status> responseObserver) {
-            if (action.getAgentRawActionCase() 
-                    == RawAction.AgentRawActionCase.AGENTRAWACTION_NOT_SET) {
-                handler.handle(
-                        "Raw action from an agent is not set.", 
-                        Code.INVALID_ARGUMENT, 
-                        "AGENT_RAW_ACTION_NOT_SET", 
-                        "ao.isel.csee.handong.edu", 
-                        responseObserver);
-                        
-                return;
-            }
-
-            notifySubscriber(action);
+                RawAction request, StreamObserver<Status> responseObserver) {
+            notifySubscriber(request);
 
             responseObserver.onNext(
                     com.google.rpc.Status.newBuilder()
@@ -95,33 +83,12 @@ public class ActionReceivingServer {
         }
     }
 
-    private void notifySubscriber(
-            AgentInfo.AgentType type, String host, int port) {
-        subscriber.update(type, host, port);
+    private void notifySubscriber(AgentInfo info) {
+        subscriber.update(info);
     }
 
-    private void notifySubscriber(RawAction action) {
-        switch (action.getAgentRawActionCase()) {
-            case RAW_ACTION_ISA:
-                RawActionISA actionISA = action.getRawActionISA();
-                Linear linear = actionISA.getLinear();
-                Angular angular = actionISA.getAngular();
-
-                subscriber.update(
-                    linear.getX(), linear.getY(), linear.getZ(),
-                    angular.getX(), angular.getY(), angular.getZ());
-                
-                break;
-
-            case RAW_ACTION_IUA:
-                subscriber.update();
-                
-                break;
-
-            case RAW_ACTION_IOA:
-            
-            default:
-        }
+    private void notifySubscriber(RawAction rawAction) {
+        subscriber.update(rawAction);
     }
 
     public void start() throws IOException {
