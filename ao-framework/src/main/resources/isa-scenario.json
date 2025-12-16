@@ -1,0 +1,13 @@
+{
+    "type": 1,
+    "frameNums": [ 240, 360, 744 ],
+    "rawActions": [ { "linear": { "x": 7.0, "y": 7.0, "z": 7.0 }, 
+                      "angular": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 240 },
+                    { "linear": { "x": 7.0, "y": 7.0, "z": 7.0 }, 
+                      "angular": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 360},
+                    { "linear": { "x": 7.0, "y": 7.0, "z": 7.0 }, 
+                      "angular": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 744 } ]
+}
