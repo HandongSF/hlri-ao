@@ -60,9 +60,11 @@ public class ROSSimulator {
                     if (image == null) continue;
 
                     byte[] frameBytes = encodeToJpeg(image);
-                    notifySubscriber(frameBytes, timestampMs);
-
+                    
                     frameCount++;
+
+                    notifySubscriber(frameBytes, timestampMs, frameCount);
+
                     framesThisSec++;
 
                     long now = System.currentTimeMillis();
@@ -131,7 +133,7 @@ public class ROSSimulator {
         return baos.toByteArray();
     }
 
-    private void notifySubscriber(byte[] imageBytes, long timestampMs) {
+    private void notifySubscriber(byte[] imageBytes, long timestampMs, int frameCount) {
         // timestamp를 문자열로 변환해서 text 필드에 넣음
         String tsString = Long.toString(timestampMs);
         if (subscriber == null) {
@@ -141,6 +143,7 @@ public class ROSSimulator {
         subscriber.update(
                 imageBytes,   // byte[] image
                 new byte[0],         // byte[] depth
+                frameCount,
                 0f,           // float acceleration
                 0f,           // float angular
                 0f,           // float mag_str_x
