@@ -5,15 +5,21 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 
-import javax.xml.crypto.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.ao.Agent;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentIUA extends Agent {
+    private Scenario scenario;
+    private Logger logger;
 
-    public AgentIUA(Path config) throws IOException {
-        super(config);
+    public AgentIUA(Path networkConfig, Path scenarioConfig) throws IOException {
+        super(networkConfig);
+
+        scenario = new Scenario(scenarioConfig);
+        logger = LoggerFactory.getLogger(getClass());
     }
 
     @Override
@@ -27,15 +33,25 @@ public class AgentIUA extends Agent {
     }
 
     @Override
-    protected RawAction calcRawAction(Data data) {
-        return RawAction.newBuilder()
-                        .setRawActionIUA(RawActionIUA.getDefaultInstance())
-                        .build();
+    protected RawAction calcRawAction() {
+        int currFrameNum;
+        int scenarioFrameNum = scenario.nextFrameNum();
+    
+        do {
+            currFrameNum = server.getData().getFrameNum();
+        } while (currFrameNum < scenarioFrameNum);
+        logger.info(
+                "Calculating raw action (using up to {}th frame)", 
+                currFrameNum, scenarioFrameNum);
+        return scenario.currRawAction();
     }
 
     public static void main(String[] args) {
+        Class<AgentIUA> clazz = AgentIUA.class;
+
         try (Agent agent = new AgentIUA(
-                Path.of(AgentIUA.class.getResource("/agent.json").toURI()))) {
+                Path.of(clazz.getResource("/iua-network.json").toURI()),
+                Path.of(clazz.getResource("/iua-scenario.json").toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();
