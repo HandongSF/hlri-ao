@@ -6,11 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import io.grpc.internal.JsonParser;
-
 import edu.handong.csee.isel.ao.network.client.ActionReceivingClient;
 import edu.handong.csee.isel.ao.network.server.DataStoringServer;
-import edu.handong.csee.isel.ao.util.ConfigExtractor;
+import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
 import edu.handong.csee.isel.proto.*;
 
 public abstract class Agent implements AutoCloseable {
@@ -18,13 +16,14 @@ public abstract class Agent implements AutoCloseable {
     protected ActionReceivingClient client;
 
     public Agent(Path config) throws IOException {
-        ConfigExtractor extractor = new ConfigExtractor(config);
+        NetworkConfigExtractor extractor = new NetworkConfigExtractor(config);
         Integer serverPort = extractor.getServerPort();
         String clientHost = extractor.getClientHost();
         Integer clientPort = extractor.getClientPort();
 
         if (serverPort == null || clientHost == null || clientPort == null) {
-            throw new IOException("Format of config file is not valid");
+            throw new IOException(
+                    "Format of network config file is not valid");
         }
 
         server = new DataStoringServer(serverPort);
@@ -36,13 +35,13 @@ public abstract class Agent implements AutoCloseable {
         connect();
 
         while (true) {
-            client.sendRawAction(calcRawAction(server.getData()));
+            client.sendRawAction(calcRawAction());
         }
     }
 
     protected abstract void connect() throws UnknownHostException;
 
-    protected abstract RawAction calcRawAction(Data data);
+    protected abstract RawAction calcRawAction();
 
     @Override
     public void close() throws InterruptedException {
