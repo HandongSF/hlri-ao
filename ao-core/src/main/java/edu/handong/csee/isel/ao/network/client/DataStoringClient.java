@@ -5,7 +5,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 
 import com.google.rpc.Status;
 
@@ -16,13 +18,22 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.handong.csee.isel.ao.AgentOrchestrator;
 import edu.handong.csee.isel.proto.*;
 
 public class DataStoringClient {
-    private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs 
-            = new HashMap<>();
-    private Map<AgentInfo.AgentType, Queue<Data>> queues = new HashMap<>();
-    private Logger logger = LoggerFactory.getLogger(getClass());
+    private final int MAX_AGENTS = 1;
+    private ConcurrentMap<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs;
+    private Map<AgentInfo.AgentType, Queue<Data>> queues;
+    private AgentOrchestrator subscriber;
+    private Logger logger;
+
+    public DataStoringClient(AgentOrchestrator ao) {
+        stubs = new ConcurrentHashMap<>();
+        queues = new HashMap<>();
+        subscriber = ao;
+        logger = LoggerFactory.getLogger(getClass());
+    }
     
     public void sendData(AgentInfo.AgentType type, int frames) {
         logger.info("Sending data to Agent client");        
@@ -36,7 +47,7 @@ public class DataStoringClient {
         
             @Override
             public void onNext(Status value) {
-                logger.info("Data sending status: {}", value.getCode());
+                
             }
 
             @Override
@@ -56,7 +67,10 @@ public class DataStoringClient {
 
         while (sent < frames) {
             if (!queue.isEmpty()) {
-                requestObserver.onNext(queue.poll());
+                Data data = queue.poll();
+                
+                requestObserver.onNext(data);
+                notify(data);
                 sent++;
             } 
         }
@@ -70,8 +84,12 @@ public class DataStoringClient {
         }
     }
 
+    public boolean ready() {
+        return stubs.size() == MAX_AGENTS;
+    }
+
     public void addStub(AgentInfo.AgentType key, String host, int port) {
-        logger.info("Creating AO client");
+        logger.info("Creating AO client {}/{}", stubs.size() + 1, MAX_AGENTS);
         stubs.put(
                 key, 
                 DataStoringGrpc.newStub(
@@ -87,6 +105,10 @@ public class DataStoringClient {
         if (queue != null) {
             queue.add(data);
         }
+    }
+
+    public void notify(Data data) {
+        subscriber.update(data);
     }
 
     public void shutdown() throws InterruptedException {
