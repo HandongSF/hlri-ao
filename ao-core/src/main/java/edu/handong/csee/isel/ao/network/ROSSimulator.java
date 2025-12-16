@@ -49,8 +49,8 @@ public class ROSSimulator {
 
                     Frame frame = grabber.grab();
                     if (frame == null) {
-                        System.out.println("No more frame");
-                        break;
+                        grabber.setTimestamp(0);
+                        continue;
                     }
 
                     long timestampUs = grabber.getTimestamp();
@@ -60,7 +60,7 @@ public class ROSSimulator {
                     if (image == null) continue;
 
                     byte[] frameBytes = encodeToJpeg(image);
-                    
+
                     frameCount++;
 
                     notifySubscriber(frameBytes, timestampMs, frameCount);
