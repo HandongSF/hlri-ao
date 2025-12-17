@@ -10,6 +10,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URL; // [추가] 리소스 로딩을 위해 필요
 
 public class ROSSimulator {
 
@@ -41,12 +42,22 @@ public class ROSSimulator {
                 for (int episode = 0; episode < TOTAL_EPISODES; episode++) {
                     if (!running) break;
 
-                    String currentVideoSource = videoFiles[episode % 2];
+                    String videoFileName = videoFiles[episode % 2];
+
+                    URL videoUrl = ROSSimulator.class.getClassLoader().getResource(videoFileName);
+
+                    if (videoUrl == null) {
+                        System.err.println("!!! [Error] Resources 폴더에서 '" + videoFileName + "' 파일을 찾을 수 없습니다 !!!");
+                        running = false;
+                        break;
+                    }
+
+                    String absolutePath = videoUrl.getFile();
 
                     System.out.printf("=== [ROS] (%d/%d): %s ===%n",
-                            (episode + 1), TOTAL_EPISODES, currentVideoSource);
+                            (episode + 1), TOTAL_EPISODES, videoFileName);
 
-                    grabber = new FFmpegFrameGrabber(currentVideoSource);
+                    grabber = new FFmpegFrameGrabber(absolutePath);
                     grabber.setPixelFormat(avutil.AV_PIX_FMT_BGR24);
                     grabber.start();
 
@@ -104,7 +115,7 @@ public class ROSSimulator {
                         }
 
                         if (isVideoFinished) {
-                            System.out.println("=== [ROS] " + currentVideoSource + " done ===");
+                            System.out.println("=== [ROS] " + videoFileName + " done ===");
                             break;
                         }
 
@@ -137,7 +148,7 @@ public class ROSSimulator {
 
                 }
 
-                System.out.println("=== [ROS] 모든 시뮬레이션(총 20회) 완료 ===");
+                System.out.println("=== [ROS] All simulation (20) done ===");
                 running = false;
 
             } catch (Exception e) {
@@ -178,26 +189,5 @@ public class ROSSimulator {
 
     public void sendAction(String action) {
         System.out.print(action);
-    }
-
-    public static void main(String[] args) throws Exception {
-        // AgentOrchestrator가 없으므로 null을 전달하여 테스트
-        ROSSimulator simulator = new ROSSimulator(null);
-
-        System.out.println("ROS Simulator를 시작합니다...");
-        System.out.println("총 20회(각 영상 10회) 반복 후 자동 종료됩니다.");
-        System.out.println("중간에 멈추려면 [ENTER] 키를 누르세요.");
-        System.out.println("--------------------------------------------------");
-
-        simulator.start();
-
-        // 엔터 키 입력 대기 (메인 스레드 블로킹)
-        // 시뮬레이션이 20회 다 끝나도 이 부분에서 대기하므로,
-        // 프로그램 완전 종료를 위해선 엔터를 눌러주세요.
-        System.in.read();
-
-        System.out.println("Stopping ROS Simulator...");
-        simulator.stop();
-        System.out.println("Stopped.");
     }
 }
