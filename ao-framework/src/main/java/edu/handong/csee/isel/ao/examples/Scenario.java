@@ -18,7 +18,6 @@ public class Scenario {
 
     public Scenario(Path config) throws IOException {
         ScenarioConfigExtractor extractor = new ScenarioConfigExtractor(config);
-        AgentInfo.AgentType type;
 
         frameNums = extractor.getFrameNums();
 
@@ -56,10 +55,34 @@ public class Scenario {
     }
 
     public RawAction currRawAction() {
-        return random.nextInt(10) == 0 
-                ? RawAction.newBuilder()
-                           .setFrameNum(frameNums[idx])
-                           .build()
-                : rawActions[idx];
+        if (random.nextInt(10) == 0) {
+            RawAction.Builder builder = RawAction.newBuilder();
+
+            switch (type) {
+                case AT_ISA:
+                    builder = builder.setRawActionIsa(
+                            RawActionISA.getDefaultInstance());
+                    
+                    break;
+                
+                case AT_IUA:
+                    builder = builder.setRawActionIua(
+                            RawActionIUA.getDefaultInstance());
+                    
+                    break;
+                
+                case AT_IOA:
+                    builder = builder.setRawActionIoa(
+                            RawActionIOA.getDefaultInstance());
+                    
+                    break;
+                
+                default:
+            }
+
+            return builder.setFrameNum(frameNums[idx]).build();
+        } else {
+            return rawActions[idx];
+        }
     }
 }
