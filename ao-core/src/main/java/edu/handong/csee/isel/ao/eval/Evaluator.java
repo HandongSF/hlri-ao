@@ -122,7 +122,7 @@ public class Evaluator {
         if (record.size() < numAgent - 1) {
             record.add(System.currentTimeMillis());
         } else if (record.size() == numAgent - 1) {
-            totalSyncTime += System.currentTimeMillis() - record.getFirst();
+            totalSyncTime += System.currentTimeMillis() - record.get(0);
             syncCount++;
         }   
     }

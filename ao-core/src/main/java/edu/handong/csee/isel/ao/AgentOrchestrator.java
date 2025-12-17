@@ -98,7 +98,7 @@ public class AgentOrchestrator implements AutoCloseable {
         }
 
         simulator.start();
-        threads.getFirst().start();
+        threads.get(0).start();
         
         while (true) {
             orchest();
