@@ -21,11 +21,11 @@ public class Evaluator {
     private Logger logger;
     private float totalRespTime;
     private float totalSyncTime;
-    private int numSuccess;
-    private int numAdjust;
+    private int numSuccessResp;
+    private int numSuccessRout;
     private int scenarioCount;
     private int syncCount;
-    private int wrongCount;
+    private int routCount;
     private int numAgent;
 
     public Evaluator(int numAgent) {
@@ -33,11 +33,10 @@ public class Evaluator {
         syncRecords = new ConcurrentHashMap<>();
         totalRespTime = 0F;
         totalSyncTime = 0F;
-        numSuccess = 0;
-        numAdjust = 0;
+        numSuccessResp = 0;
+        numSuccessRout = 0;
         scenarioCount = 0;
         syncCount = 0;
-        wrongCount = 0; 
         this.numAgent = numAgent;
     }
 
@@ -63,16 +62,9 @@ public class Evaluator {
                             .equals(RawActionIUA.getDefaultInstance())
                 && rawAction.getRawActionIoa() 
                             .equals(RawActionIOA.getDefaultInstance()))) {
-            numSuccess++;
-        } else {
-            if (new Random().nextInt(10) < 7) {
-                LOGGER.info("Requesting readjustment due to receiving wrong action");
-                numAdjust++;
-            }
-
-            wrongCount++;
+            numSuccessResp++;
         }
-        
+
         scenarioCount++;
     }
 
@@ -92,14 +84,19 @@ public class Evaluator {
         }   
     }
 
+    public void evalRout(boolean isSuccess) {
+        numSuccessRout += isSuccess ? 1 : 0;
+        routCount++;
+    }
+
     public void summary() {
         System.out.print("\n======================= Evaluation =======================\n");
         System.out.printf(
-                "resp: %.2f ms, sync: %.2f ms, acc: %.2f %%, adj: %.2f %%\n", 
+                "resp: %.2f ms, sync: %.2f ms, acc: %.2f %%, fit: %.2f %%\n", 
                 totalRespTime / scenarioCount,
                 totalSyncTime / syncCount,
-                ((float) numSuccess) / scenarioCount * 100,
-                ((float) numAdjust) / wrongCount * 100);
+                ((float) numSuccessResp) / scenarioCount * 100,
+                ((float) numSuccessRout) / routCount * 100);
         System.out.print("==========================================================\n");
     }
 

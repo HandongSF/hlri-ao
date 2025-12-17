@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.google.protobuf.ByteString;
@@ -19,23 +21,32 @@ import edu.handong.csee.isel.ao.network.ROSSimulator;
 import edu.handong.csee.isel.ao.network.client.DataStoringClient;
 import edu.handong.csee.isel.ao.network.server.ActionReceivingServer;
 import edu.handong.csee.isel.ao.policy.Router;
+import edu.handong.csee.isel.ao.policy.Scheduler;
 import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
+import edu.handong.csee.isel.ao.utils.RoutingConfigExtractor;
+import edu.handong.csee.isel.ao.utils.TempData;
+import edu.handong.csee.isel.ao.examples.ScenarioRouter;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentOrchestrator implements AutoCloseable {
     private final Logger LOGGER = LoggerFactory.getLogger("AO");
-    private final int NUM_AGENT = 2;
+    private final int NUM_AGENT = 3;
     private final int NUM_FRAME = 30;
+    private final int EVAL_INTERVAL = 30000;
 
     private ActionReceivingServer server;
     private DataStoringClient client;
     private ROSSimulator simulator;
     private Router router;
+    private Scheduler scheduler;
+    private Queue<TempData> queue;
     private Evaluator evaluator;
     private List<Thread> threads;
 
-    public AgentOrchestrator(Path config) throws IOException {
-        Integer port = new NetworkConfigExtractor(config).getServerPort();
+    public AgentOrchestrator(Path networkConfig, Path routingConfig) 
+            throws IOException {
+        Integer port 
+                = new NetworkConfigExtractor(networkConfig).getServerPort();
         
         if (port == null) {
             throw new IOException("Format of the config file is not valid");
@@ -44,15 +55,17 @@ public class AgentOrchestrator implements AutoCloseable {
         server = new ActionReceivingServer(this, port);
         client = new DataStoringClient(this, NUM_AGENT);
         simulator = new ROSSimulator(this);
-        router = new Router();
+        router = new ScenarioRouter(this, routingConfig);
+        scheduler = new Scheduler(routingConfig);
         evaluator = new Evaluator(NUM_AGENT);
+        queue = new ConcurrentLinkedQueue<>();
 
         threads = new ArrayList<>();
         threads.add(new Thread(
                 () -> {
                     try {
                         while (true) {
-                            Thread.sleep(30000); 
+                            Thread.sleep(EVAL_INTERVAL); 
                             evaluator.summary();
                         }
                     } catch (InterruptedException e) {
@@ -75,7 +88,6 @@ public class AgentOrchestrator implements AutoCloseable {
                 "shutdown-hook");
 
         Thread.currentThread().setName("main");
-        runtime.addShutdownHook(shutdownHook);
         
         server.start();
 
@@ -83,11 +95,30 @@ public class AgentOrchestrator implements AutoCloseable {
 
         simulator.start();
         threads.getFirst().start();
-
-        server.awaitTermination(10, TimeUnit.MINUTES);
         
-        LOGGER.info("Time limit exceeded");
-        runtime.removeShutdownHook(shutdownHook);
+        while (true) {
+            orchest();
+        }
+    }
+
+    private void orchest() {
+        AgentInfo.AgentType[] targets;
+        List<TempData> tempDataList = new ArrayList<>();
+        int numFrame = scheduler.nextNumFrame();
+        
+        while (tempDataList.size() < numFrame) {
+            if (!queue.isEmpty()) {
+                tempDataList.add(queue.poll());
+            }
+        } 
+        System.out.println("test1");
+        targets = router.route(tempDataList);
+        
+        for (TempData tempData : tempDataList) {
+            for (AgentInfo.AgentType type : targets) {
+                client.addData(type, convertToClientFormat(type, tempData));
+            }
+        }
     }
 
     public void update(AgentInfo info) {
@@ -119,94 +150,66 @@ public class AgentOrchestrator implements AutoCloseable {
             float mag_str_x, float mag_str_y, 
             String target, String text,
             byte[] header, byte[] format, byte[] voiceData) {
-        for (AgentInfo.AgentType type
-                : router.route(
-                        image, depth, accel, angular, 
-                        mag_str_x, mag_str_y, target, 
-                        text, header, format, voiceData)) {
-            Data data;
+        queue.add(
+                new TempData(
+                        image, depth, frameNum, 
+                        accel, angular, mag_str_x, mag_str_y, 
+                        target, text, header, format, voiceData));
+    }
 
-            switch (type) {
-                case AT_ISA:
-                    data = convertToClientFormat(
-                            image, depth, frameNum, 
-                            accel, angular, mag_str_x, mag_str_y, 
-                            target, text);
-                    
-                    break;
-                
-                case AT_IUA:
-                    data = convertToClientFormat(
-                            image, depth, frameNum, 
-                            header, format, voiceData);
+    private Data convertToClientFormat(
+            AgentInfo.AgentType type, TempData data) {
+        Data.Builder dataBuilder = Data.newBuilder();
 
-                    break;
+        switch (type) {
+            case AT_ISA:
+                DataISA.Builder dataIsaBuilder 
+                        = dataBuilder.getDataIsaBuilder();
+        
+                dataIsaBuilder.getRgbdBuilder()
+                            .setImage(ByteString.copyFrom(data.getImage()))
+                            .setDepth(ByteString.copyFrom(data.getDepth()));
+                dataIsaBuilder.getImuBuilder()
+                            .setAccel(data.getAccel())
+                            .setAngular(data.getAngular())
+                            .setMagStrX(data.getMagStrX())
+                            .setMagStrY(data.getMagStrY());
+                dataIsaBuilder.getCmdBuilder()
+                            .setTarget(data.getTarget())
+                            .setText(data.getText());
+        
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            case AT_IUA:
+                DataIUA.Builder dataIuaBuilder = dataBuilder.getDataIuaBuilder();
+        
+                dataIuaBuilder.getRgbdBuilder()
+                                .setImage(ByteString.copyFrom(data.getImage()))
+                                .setDepth(ByteString.copyFrom(data.getDepth()));
+                dataIuaBuilder.getVoiceBuilder()
+                                .setHeader(ByteString.copyFrom(data.getHeader()))
+                                .setFormat(ByteString.copyFrom(data.getFormat()))
+                                .setData(ByteString.copyFrom(data.getData()));
 
-                case AT_IOA:
-                    data = convertToClientFormat(image, depth, frameNum);
-
-                    break;
-                
-                default:
-                    data = Data.getDefaultInstance();
-            }
-
-            client.addData(type, data);
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            case AT_IOA:
+                dataBuilder.getDataIoaBuilder()
+                           .getRgbdBuilder()
+                            .setImage(ByteString.copyFrom(data.getImage()))
+                            .setDepth(ByteString.copyFrom(data.getDepth()));
+        
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            default: 
+                return null;
         }
     }
 
-    private Data convertToClientFormat(
-            byte[] image, byte[] depth, int frameNum, 
-            float accel, float angular, 
-            float mag_str_x, float mag_str_y, 
-            String target, String text) {
-        Data.Builder dataBuilder = Data.newBuilder();
-        DataISA.Builder dataIsaBuilder = dataBuilder.getDataIsaBuilder();
-        
-        dataIsaBuilder.getRgbdBuilder()
-                      .setImage(ByteString.copyFrom(image))
-                      .setDepth(ByteString.copyFrom(depth));
-        dataIsaBuilder.getImuBuilder()
-                      .setAccel(accel)
-                      .setAngular(angular)
-                      .setMagStrX(mag_str_x)
-                      .setMagStrY(mag_str_y);
-        dataIsaBuilder.getCmdBuilder()
-                      .setTarget(target)
-                      .setText(text);
-        
-        return dataBuilder.setFrameNum(frameNum).build();
+    public void update(boolean isSuccess) {
+        evaluator.evalRout(isSuccess);
     }
-
-    private Data convertToClientFormat(
-            byte[] image, byte[] depth, int frameNum,
-            byte[] header, byte[] format, byte[] data) {
-        Data.Builder dataBuilder = Data.newBuilder();
-        DataIUA.Builder dataIuaBuilder = dataBuilder.getDataIuaBuilder();
-        
-        dataIuaBuilder.getRgbdBuilder()
-                      .setImage(ByteString.copyFrom(image))
-                      .setDepth(ByteString.copyFrom(depth));
-        dataIuaBuilder.getVoiceBuilder()
-                      .setHeader(ByteString.copyFrom(header))
-                      .setFormat(ByteString.copyFrom(format))
-                      .setData(ByteString.copyFrom(data));
-        
-        return dataBuilder.setFrameNum(frameNum).build();
-    }
-
-    private Data convertToClientFormat(
-            byte[] image, byte[] depth, int frameNum) {
-        Data.Builder dataBuilder = Data.newBuilder();
-        
-        dataBuilder.getDataIoaBuilder()
-                   .getRgbdBuilder()
-                   .setImage(ByteString.copyFrom(image))
-                   .setDepth(ByteString.copyFrom(depth));
-        
-        return dataBuilder.setFrameNum(frameNum).build();
-    }
-
+               
     public void update(Data data) {
         evaluator.record(data);
     }
@@ -292,6 +295,8 @@ public class AgentOrchestrator implements AutoCloseable {
     public static void main(String[] args) {
         try (AgentOrchestrator ao = new AgentOrchestrator(
                 Path.of(AgentOrchestrator.class.getResource("/ao-network.json")
+                                               .toURI()),
+                Path.of(AgentOrchestrator.class.getResource("/ao-routing.json")
                                                .toURI()))) {
             ao.run();
         } catch (Exception e) {

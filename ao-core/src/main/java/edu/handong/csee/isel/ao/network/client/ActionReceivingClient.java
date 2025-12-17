@@ -12,6 +12,7 @@ import edu.handong.csee.isel.proto.*;
 
 public class ActionReceivingClient {
     private final Logger LOGGER;
+    
     private ActionReceivingGrpc.ActionReceivingBlockingStub stub;
     
     public ActionReceivingClient(String host, int port, String name) {
