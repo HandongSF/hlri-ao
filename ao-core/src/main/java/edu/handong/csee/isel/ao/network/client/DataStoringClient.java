@@ -22,21 +22,22 @@ import edu.handong.csee.isel.ao.AgentOrchestrator;
 import edu.handong.csee.isel.proto.*;
 
 public class DataStoringClient {
-    private final int MAX_AGENTS = 1;
-    private ConcurrentMap<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs;
+    private final Logger LOGGER = LoggerFactory.getLogger("AO-client");
+
+    private Map<AgentInfo.AgentType, DataStoringGrpc.DataStoringStub> stubs;
     private Map<AgentInfo.AgentType, Queue<Data>> queues;
     private AgentOrchestrator subscriber;
-    private Logger logger;
+    private int numAgent;
 
-    public DataStoringClient(AgentOrchestrator ao) {
+    public DataStoringClient(AgentOrchestrator ao, int numAgent) {
         stubs = new ConcurrentHashMap<>();
         queues = new HashMap<>();
         subscriber = ao;
-        logger = LoggerFactory.getLogger(getClass());
+        this.numAgent = numAgent;
     }
     
     public void sendData(AgentInfo.AgentType type, int frames) {
-        logger.info("Sending data to Agent client");        
+        LOGGER.info("Sending data to an Agent");        
         if (type == AgentInfo.AgentType.AT_UNSPECIFIED 
                 || type == AgentInfo.AgentType.UNRECOGNIZED) {
             return;
@@ -84,12 +85,14 @@ public class DataStoringClient {
         }
     }
 
-    public boolean ready() {
-        return stubs.size() == MAX_AGENTS;
+    public boolean isReady() {
+        return stubs.size() == numAgent;
     }
 
     public void addStub(AgentInfo.AgentType key, String host, int port) {
-        logger.info("Creating AO client {}/{}", stubs.size() + 1, MAX_AGENTS);
+        LOGGER.info(
+                "Creating an AO client {}/{}", 
+                stubs.size() + 1, numAgent);
         stubs.put(
                 key, 
                 DataStoringGrpc.newStub(
