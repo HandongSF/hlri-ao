@@ -1,7 +1,7 @@
 package edu.handong.csee.isel.ao.network;
 
 import edu.handong.csee.isel.ao.AgentOrchestrator;
-import org.bytedeco.ffmpeg.global.avutil; // 로그 설정을 위해 필요
+import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.Java2DFrameConverter;
@@ -9,7 +9,14 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL; // [추가] 리소스 로딩을 위해 필요
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class ROSSimulator {
 
@@ -17,7 +24,7 @@ public class ROSSimulator {
     private volatile boolean running = false;
     private Thread videoThread;
 
-    private String videoSource = "video.mp4";
+    private String[] videoFiles = {"video1.mp4", "video2.mp4"};
 
     private FFmpegFrameGrabber grabber;
     private Java2DFrameConverter converter = new Java2DFrameConverter();
@@ -31,109 +38,124 @@ public class ROSSimulator {
 
         final int TARGET_FPS = 15;
         final long BATCH_INTERVAL_MS = 1000;
+        final int PLAYS_PER_VIDEO = 10;
+        final int TOTAL_EPISODES = videoFiles.length * PLAYS_PER_VIDEO;
 
         videoThread = new Thread(() -> {
             try {
                 avutil.av_log_set_level(avutil.AV_LOG_ERROR);
 
-                grabber = createGrabber(videoSource);
-                grabber.setPixelFormat(avutil.AV_PIX_FMT_BGR24);
-                grabber.start();
+                for (int episode = 0; episode < TOTAL_EPISODES; episode++) {
+                    if (!running) break;
 
-                double sourceFps = grabber.getFrameRate();
-                if (sourceFps <= 0) sourceFps = 30.0;
+                    String videoFileName = videoFiles[episode % 2];
 
-                final double frameStep = sourceFps / (double) TARGET_FPS;
+                    URL videoUrl = ROSSimulator.class.getClassLoader().getResource(videoFileName);
 
-                System.out.printf("=== [ROS] START (영상 FPS: %.2f | 전송 FPS: %d) ===%n", sourceFps, TARGET_FPS);
+                    if (videoUrl == null) {
+                        System.err.println("!!! [Error] Resources 폴더에서 '" + videoFileName + "' 파일을 찾을 수 없습니다 !!!");
+                        running = false;
+                        break;
+                    }
 
-                final int[] loopCount = {1};
-                final int[] globalFrameCount = {0};
-                final long[] internalSourceFrameIndex = {0};
+                    String absolutePath = resolveResourceToFilePath(videoFileName);
 
-                double nextTargetVideoFrame = 0.0;
+                    System.out.printf("=== [ROS] (%d/%d): %s ===%n",
+                            (episode + 1), TOTAL_EPISODES, videoFileName);
 
-                while (running) {
-                    long loopStart = System.currentTimeMillis();
-                    int currentBatchSent = 0;
+                    grabber = new FFmpegFrameGrabber(absolutePath);
+                    grabber.setPixelFormat(avutil.AV_PIX_FMT_BGR24);
+                    grabber.start();
 
-                    boolean wasReset = false;
+                    double sourceFps = grabber.getFrameRate();
+                    if (sourceFps <= 0) sourceFps = 30.0;
+                    final double frameStep = sourceFps / (double) TARGET_FPS;
 
-                    for (int i = 0; i < TARGET_FPS; i++) {
-                        if (!running) break;
+                    int loopCount = 1;
+                    int globalFrameCount = 0;
+                    long internalSourceFrameIndex = 0;
+                    double nextTargetVideoFrame = 0.0;
 
-                        // 1. 프레임 스킵
-                        long framesToSkip = (long)nextTargetVideoFrame - internalSourceFrameIndex[0];
-                        for (int k = 0; k < framesToSkip; k++) {
-                            Frame skipped = grabber.grabImage();
-                            internalSourceFrameIndex[0]++;
-                            if (skipped == null) {
-                                handleVideoReset(globalFrameCount, loopCount, internalSourceFrameIndex);
-                                nextTargetVideoFrame = 0.0;
-                                wasReset = true;
+                    boolean isVideoFinished = false;
+
+                    while (running && !isVideoFinished) {
+                        long loopStart = System.currentTimeMillis();
+                        int currentBatchSent = 0;
+
+                        for (int i = 0; i < TARGET_FPS; i++) {
+                            if (!running) break;
+
+                            long framesToSkip = (long)nextTargetVideoFrame - internalSourceFrameIndex;
+                            for (int k = 0; k < framesToSkip; k++) {
+                                Frame skipped = grabber.grabImage();
+                                internalSourceFrameIndex++;
+                                if (skipped == null) {
+                                    isVideoFinished = true;
+                                    break;
+                                }
+                            }
+                            if (isVideoFinished) break;
+
+                            Frame frame = grabber.grabImage();
+                            internalSourceFrameIndex++;
+
+                            if (frame == null) {
+                                isVideoFinished = true;
                                 break;
                             }
+
+                            nextTargetVideoFrame += frameStep;
+
+                            long timestampUs = grabber.getTimestamp();
+                            long timestampMs = timestampUs / 1000;
+
+                            BufferedImage image = converter.convert(frame);
+                            if (image == null) continue;
+
+                            byte[] frameBytes = encodeToJpeg(image);
+
+                            globalFrameCount++;
+                            currentBatchSent++;
+
+                            notifySubscriber(frameBytes, timestampMs, globalFrameCount);
                         }
-                        if (wasReset) break;
 
-                        // 2. 실제 전송할 프레임 읽기
-                        Frame frame = grabber.grabImage();
-                        internalSourceFrameIndex[0]++;
-
-                        if (frame == null) {
-                            handleVideoReset(globalFrameCount, loopCount, internalSourceFrameIndex);
-                            nextTargetVideoFrame = 0.0;
-                            wasReset = true;
+                        if (isVideoFinished) {
+                            System.out.println("=== [ROS] " + videoFileName + " done ===");
                             break;
                         }
 
-                        // 다음 목표 위치 갱신
-                        nextTargetVideoFrame += frameStep;
+                        long loopEnd = System.currentTimeMillis();
+                        long procTime = loopEnd - loopStart;
+                        long sleepTime = BATCH_INTERVAL_MS - procTime;
 
-                        // 3. 전송
-                        long timestampUs = grabber.getTimestamp();
-                        long timestampMs = timestampUs / 1000;
+                        if (loopCount % 5 == 0) {
+                            System.out.printf("[ROS] %ds (%d frames)%n",
+                                    loopCount,
+                                    globalFrameCount);
+                        }
 
-                        BufferedImage image = converter.convert(frame);
-                        if (image == null) continue;
+                        loopCount++;
 
-                        byte[] frameBytes = encodeToJpeg(image);
-
-                        globalFrameCount[0]++;
-                        currentBatchSent++;
-
-                        notifySubscriber(frameBytes, timestampMs, globalFrameCount[0]);
-                    }
-
-                    // 리셋 발생 시 자투리 로그 스킵
-                    if (wasReset) {
-                        continue;
-                    }
-
-                    // 4. 시간 계산 및 대기
-                    long loopEnd = System.currentTimeMillis();
-                    long procTime = loopEnd - loopStart;
-                    long sleepTime = BATCH_INTERVAL_MS - procTime;
-
-                    System.out.printf("[ROS] %d초 경과 - %d장 전송 완료 (현재 영상위치: %d 프레임)%n",
-                            loopCount[0],
-                            currentBatchSent,
-                            globalFrameCount[0]);
-
-                    loopCount[0]++;
-
-                    if (sleepTime > 0) {
-                        try {
-                            Thread.sleep(sleepTime);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            break;
+                        if (sleepTime > 0) {
+                            try {
+                                Thread.sleep(sleepTime);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                running = false;
+                            }
                         }
                     }
+
+                    grabber.stop();
+                    grabber.release();
+
+                    if (running) Thread.sleep(500);
+
                 }
 
-                grabber.stop();
-                grabber.release();
+                System.out.println("=== [ROS] All simulation (20) done ===");
+                running = false;
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -141,18 +163,6 @@ public class ROSSimulator {
         }, "JavaCV-Video-Thread");
 
         videoThread.start();
-    }
-
-    private void handleVideoReset(int[] globalFrameCount, int[] loopCount, long[] internalSourceFrameIndex) throws Exception {
-        System.out.println("=== [ROS] 영상 종료 -> 0번부터 리셋 ===");
-        grabber.setTimestamp(0);
-        globalFrameCount[0] = 0;
-        loopCount[0] = 1;
-        internalSourceFrameIndex[0] = 0;
-    }
-
-    private FFmpegFrameGrabber createGrabber(String source) {
-        return new FFmpegFrameGrabber(source);
     }
 
     public void stop() {
@@ -183,16 +193,28 @@ public class ROSSimulator {
         );
     }
 
-    public void setVideoSource(String path) {
-        this.videoSource = path;
-    }
-
-    public String getVideoSource() {
-        return videoSource;
-    }
-
     public void sendAction(String action) {
         System.out.print(action);
     }
 
+    private String resolveResourceToFilePath(String resourceName) throws Exception {
+        URL url = ROSSimulator.class.getClassLoader().getResource(resourceName);
+        if (url == null) {
+            throw new FileNotFoundException("Resource not found: " + resourceName);
+        }
+
+        if ("file".equalsIgnoreCase(url.getProtocol())) {
+            return Paths.get(url.toURI()).toAbsolutePath().toString();
+        }
+
+        try (InputStream is = ROSSimulator.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (is == null) throw new FileNotFoundException("Resource stream not found: " + resourceName);
+
+            Path temp = Files.createTempFile("rossim-", "-" + resourceName);
+            temp.toFile().deleteOnExit();
+
+            Files.copy(is, temp, StandardCopyOption.REPLACE_EXISTING);
+            return temp.toAbsolutePath().toString();
+        }
+    }
 }

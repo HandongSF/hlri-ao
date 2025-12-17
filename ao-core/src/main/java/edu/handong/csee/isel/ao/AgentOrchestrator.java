@@ -25,7 +25,7 @@ import edu.handong.csee.isel.ao.policy.Scheduler;
 import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
 import edu.handong.csee.isel.ao.utils.RoutingConfigExtractor;
 import edu.handong.csee.isel.ao.utils.TempData;
-import edu.handong.csee.isel.ao.examples.ScenarioRouter;
+import edu.handong.csee.isel.ao.examples.policy.ScenarioRouter;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentOrchestrator implements AutoCloseable {
@@ -57,7 +57,7 @@ public class AgentOrchestrator implements AutoCloseable {
         simulator = new ROSSimulator(this);
         router = new ScenarioRouter(this, routingConfig);
         scheduler = new Scheduler(routingConfig);
-        evaluator = new Evaluator(NUM_AGENT);
+        evaluator = new Evaluator(routingConfig, NUM_AGENT);
         queue = new ConcurrentLinkedQueue<>();
 
         threads = new ArrayList<>();
@@ -76,7 +76,9 @@ public class AgentOrchestrator implements AutoCloseable {
     }
 
     public void run() throws IOException, InterruptedException {
+        /** 
         Runtime runtime = Runtime.getRuntime();
+         
         Thread shutdownHook = new Thread(
                 () -> { 
                     try {
@@ -86,12 +88,14 @@ public class AgentOrchestrator implements AutoCloseable {
                     }
                 },
                 "shutdown-hook");
-
+        **/
         Thread.currentThread().setName("main");
         
         server.start();
 
-        while (!client.isReady());
+        while (!client.isReady()) {
+            Thread.sleep(50);
+        }
 
         simulator.start();
         threads.getFirst().start();
@@ -105,13 +109,13 @@ public class AgentOrchestrator implements AutoCloseable {
         AgentInfo.AgentType[] targets;
         List<TempData> tempDataList = new ArrayList<>();
         int numFrame = scheduler.nextNumFrame();
-        
+    
         while (tempDataList.size() < numFrame) {
             if (!queue.isEmpty()) {
                 tempDataList.add(queue.poll());
             }
-        } 
-        System.out.println("test1");
+        }
+        
         targets = router.route(tempDataList);
         
         for (TempData tempData : tempDataList) {
@@ -121,11 +125,75 @@ public class AgentOrchestrator implements AutoCloseable {
         }
     }
 
+    private Data convertToClientFormat(
+            AgentInfo.AgentType type, TempData data) {
+        Data.Builder dataBuilder = Data.newBuilder();
+
+        switch (type) {
+            case AT_ISA:
+                DataISA.Builder dataIsaBuilder 
+                        = dataBuilder.getDataIsaBuilder();
+        
+                dataIsaBuilder.getRgbdBuilder()
+                              .setImage(ByteString.copyFrom(data.getImage()))
+                              .setDepth(ByteString.copyFrom(data.getDepth()));
+                dataIsaBuilder.getImuBuilder()
+                              .setAccel(data.getAccel())
+                              .setAngular(data.getAngular())
+                              .setMagStrX(data.getMagStrX())
+                              .setMagStrY(data.getMagStrY());
+                dataIsaBuilder.getCmdBuilder()
+                              .setTarget(data.getTarget())
+                              .setText(data.getText());
+        
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            case AT_IUA:
+                DataIUA.Builder dataIuaBuilder 
+                        = dataBuilder.getDataIuaBuilder();
+        
+                dataIuaBuilder.getRgbdBuilder()
+                              .setImage(ByteString.copyFrom(data.getImage()))
+                              .setDepth(ByteString.copyFrom(data.getDepth()));
+                dataIuaBuilder.getVoiceBuilder()
+                              .setHeader(ByteString.copyFrom(data.getHeader()))
+                              .setFormat(ByteString.copyFrom(data.getFormat()))
+                              .setData(ByteString.copyFrom(data.getData()));
+
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            case AT_IOA:
+                dataBuilder.getDataIoaBuilder()
+                           .getRgbdBuilder()
+                           .setImage(ByteString.copyFrom(data.getImage()))
+                           .setDepth(ByteString.copyFrom(data.getDepth()));
+        
+                return dataBuilder.setFrameNum(data.getFrameNum()).build();
+            
+            default: 
+                return null;
+        }
+    }
+
+    public void update(
+            byte[] image, byte[] depth, int frameNum, 
+            float accel, float angular, 
+            float magStrX, float magStrY, 
+            String target, String text,
+            byte[] header, byte[] format, byte[] data) {
+        queue.add(
+                new TempData(
+                        image, depth, frameNum, 
+                        accel, angular, magStrX, magStrY, 
+                        target, text, header, format, data));
+    }
+
     public void update(AgentInfo info) {
         Thread thread;
         AgentInfo.AgentType type = info.getType();
         
         evaluator.addRecord(type);
+
         client.addStub(type, info.getHost(), info.getPort());
         
         thread = new Thread(
@@ -144,142 +212,62 @@ public class AgentOrchestrator implements AutoCloseable {
         thread.start();
     }
 
-    public void update(
-            byte[] image, byte[] depth, int frameNum, 
-            float accel, float angular, 
-            float mag_str_x, float mag_str_y, 
-            String target, String text,
-            byte[] header, byte[] format, byte[] voiceData) {
-        queue.add(
-                new TempData(
-                        image, depth, frameNum, 
-                        accel, angular, mag_str_x, mag_str_y, 
-                        target, text, header, format, voiceData));
+    public void update(AgentInfo.AgentType[] decision) {
+        evaluator.evalRout(decision);
     }
 
-    private Data convertToClientFormat(
-            AgentInfo.AgentType type, TempData data) {
-        Data.Builder dataBuilder = Data.newBuilder();
-
-        switch (type) {
-            case AT_ISA:
-                DataISA.Builder dataIsaBuilder 
-                        = dataBuilder.getDataIsaBuilder();
-        
-                dataIsaBuilder.getRgbdBuilder()
-                            .setImage(ByteString.copyFrom(data.getImage()))
-                            .setDepth(ByteString.copyFrom(data.getDepth()));
-                dataIsaBuilder.getImuBuilder()
-                            .setAccel(data.getAccel())
-                            .setAngular(data.getAngular())
-                            .setMagStrX(data.getMagStrX())
-                            .setMagStrY(data.getMagStrY());
-                dataIsaBuilder.getCmdBuilder()
-                            .setTarget(data.getTarget())
-                            .setText(data.getText());
-        
-                return dataBuilder.setFrameNum(data.getFrameNum()).build();
-            
-            case AT_IUA:
-                DataIUA.Builder dataIuaBuilder = dataBuilder.getDataIuaBuilder();
-        
-                dataIuaBuilder.getRgbdBuilder()
-                                .setImage(ByteString.copyFrom(data.getImage()))
-                                .setDepth(ByteString.copyFrom(data.getDepth()));
-                dataIuaBuilder.getVoiceBuilder()
-                                .setHeader(ByteString.copyFrom(data.getHeader()))
-                                .setFormat(ByteString.copyFrom(data.getFormat()))
-                                .setData(ByteString.copyFrom(data.getData()));
-
-                return dataBuilder.setFrameNum(data.getFrameNum()).build();
-            
-            case AT_IOA:
-                dataBuilder.getDataIoaBuilder()
-                           .getRgbdBuilder()
-                            .setImage(ByteString.copyFrom(data.getImage()))
-                            .setDepth(ByteString.copyFrom(data.getDepth()));
-        
-                return dataBuilder.setFrameNum(data.getFrameNum()).build();
-            
-            default: 
-                return null;
-        }
-    }
-
-    public void update(boolean isSuccess) {
-        evaluator.evalRout(isSuccess);
+    public void update(boolean[] history) {
+        evaluator.evalTransfer(history);
     }
                
     public void update(Data data) {
         evaluator.record(data);
     }
 
-    public void update(RawAction rawAction) {
-        String action;
+    public void update(RawAction action) {
+        evaluator.evalResp(action);
 
-        evaluator.evalResp(rawAction);
-        
-        switch (rawAction.getAgentRawActionCase()) {
+        simulator.sendAction(convertToSimulatorFormat(action));
+    }
+
+    private String convertToSimulatorFormat(RawAction action) {
+        switch (action.getAgentRawActionCase()) {
             case RAW_ACTION_ISA:
-                RawActionISA rawActionISA = rawAction.getRawActionIsa();
+                RawActionISA rawActionISA = action.getRawActionIsa();
                 Linear linear = rawActionISA.getLinear();
                 Angular angular = rawActionISA.getAngular();
 
-                action = convertToSimulatorFormat(
-                        linear.getX(), linear.getY(), linear.getZ(),
-                        angular.getX(), angular.getY(), angular.getZ());
+                return String.format(
+                        "linear\n\tx: %f\n\ty: %f\n\tz: %f\n" 
+                                + "angular\n\tx: %f\n\ty: %f\n\tz: %f",
+                         linear.getX(), linear.getY(), linear.getZ(), 
+                         angular.getX(), angular.getY(), angular.getZ());
                 
-                break;
-
             case RAW_ACTION_IUA:
-                action = convertToSimulatorFormat(
-                        rawAction.getRawActionIua().getSpeech());
+                return String.format(
+                        "response\n\t%s", 
+                        action.getRawActionIua().getSpeech());
                 
-                break;
-
             case RAW_ACTION_IOA:
-                RawActionIOA rawActionIOA = rawAction.getRawActionIoa();
+                RawActionIOA rawActionIOA = action.getRawActionIoa();
                 Coordinate coord = rawActionIOA.getCoord();
 
-                action = convertToSimulatorFormat(
-                        rawActionIOA.getIntr().toString(), 
-                        coord.getX(), coord.getY(), coord.getZ());
+                return String.format(
+                        "interaction\n\t%s\n"
+                                + "coordinate\n\tx: %f\n\ty: %f\n\tz: %f",
+                        rawActionIOA.getIntr(), coord.getX(), 
+                        coord.getY(), coord.getZ());
                 
-                break;
-
             default:
-                action = "robot action";
-        }
-
-        simulator.sendAction(action);
-    }
-
-    private String convertToSimulatorFormat(
-            float linearX, float linearY, float linearZ, 
-            float angularX, float angularY, float angularZ) {
-        return String.format(
-                "linear\n\tx: %f\n\ty: %f\n\tz: %f\n" 
-                        + "angular\n\tx: %f\n\ty: %f\n\tz: %f",
-                linearX, linearY, linearZ, 
-                angularX, angularY, angularZ);
-    }
-
-    private String convertToSimulatorFormat(String speech) {
-        return String.format("response\n\t%s", speech);
-    }
-
-    private String convertToSimulatorFormat(
-            String intr, float coordX, float coordY, float coordZ) {
-        return String.format(
-                "interaction\n\t%s\ncoordinate\n\tx: %f\n\ty: %f\n\tz: %f",
-                intr, coordX, coordY, coordZ);
+                return "robot action";
+        }   
     }
 
     public void close() throws InterruptedException {
         LOGGER.info("Shutting down server and client");
         server.shutdown();
         
-        for (Thread thread : threads) {
+        for (Thread thread : threads) {            
             thread.interrupt();
             
             try {
