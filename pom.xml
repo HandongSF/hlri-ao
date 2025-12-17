@@ -23,15 +23,26 @@
         <module>ao-framework</module>
     </modules>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.google.errorprone</groupId>
-                <artifactId>error_prone_annotations</artifactId>
-                <version>2.27.0</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+    <profiles>
+        <profile>
+            <id>isa</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentISA</exec.mainClass>
+            </properties>
+        </profile>
+        <profile>
+            <id>iua</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentIUA</exec.mainClass>
+            </properties>
+        </profile>
+        <profile>
+            <id>ioa</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentIOA</exec.mainClass>
+            </properties>
+        </profile>
+    </profiles>
 
     <dependencies>
         <!-- grpc -->
@@ -61,16 +72,6 @@
             <groupId>org.bytedeco</groupId>
             <artifactId>javacv-platform</artifactId>
             <version>1.5.9</version>
-        </dependency>
-<<<<<<< HEAD
-        <!-- gson -->
-=======
-         <!-- gson -->
->>>>>>> hb_ao
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.13.2</version>
         </dependency>
         <!-- slf4j -->
         <dependency>
