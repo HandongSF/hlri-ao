@@ -10,7 +10,9 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URL; // [추가] 리소스 로딩을 위해 필요
+import java.io.*;
+import java.net.*;
+import java.nio.file.*;
 
 public class ROSSimulator {
 
@@ -52,7 +54,7 @@ public class ROSSimulator {
                         break;
                     }
 
-                    String absolutePath = videoUrl.getFile();
+                    String absolutePath = resolveResourceToFilePath(videoFileName);
 
                     System.out.printf("=== [ROS] (%d/%d): %s ===%n",
                             (episode + 1), TOTAL_EPISODES, videoFileName);
@@ -190,4 +192,26 @@ public class ROSSimulator {
     public void sendAction(String action) {
         System.out.print(action);
     }
+
+    private String resolveResourceToFilePath(String resourceName) throws Exception {
+        URL url = ROSSimulator.class.getClassLoader().getResource(resourceName);
+        if (url == null) {
+            throw new FileNotFoundException("Resource not found: " + resourceName);
+        }
+
+        if ("file".equalsIgnoreCase(url.getProtocol())) {
+            return Paths.get(url.toURI()).toAbsolutePath().toString();
+        }
+
+        try (InputStream is = ROSSimulator.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (is == null) throw new FileNotFoundException("Resource stream not found: " + resourceName);
+
+            Path temp = Files.createTempFile("rossim-", "-" + resourceName);
+            temp.toFile().deleteOnExit();
+
+            Files.copy(is, temp, StandardCopyOption.REPLACE_EXISTING);
+            return temp.toAbsolutePath().toString();
+        }
+    }
+
 }
