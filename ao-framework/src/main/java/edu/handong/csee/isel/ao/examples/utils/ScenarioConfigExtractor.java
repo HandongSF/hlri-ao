@@ -35,7 +35,7 @@ public class ScenarioConfigExtractor extends ConfigExtractor {
 
     public AgentInfo.AgentType getAgentType() {
         try {
-            return AgentInfo.AgentType.valueOf(
+            return AgentInfo.AgentType.forNumber(
                     json.getAsJsonObject().get("type").getAsInt());
         } catch (IllegalStateException 
                 | NullPointerException 
