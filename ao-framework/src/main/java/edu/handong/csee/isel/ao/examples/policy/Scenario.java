@@ -44,7 +44,6 @@ public class Scenario {
         }
 
         random = new Random();
-
         idx = -1;
     }
 
@@ -52,6 +51,10 @@ public class Scenario {
         idx = (idx + 1) % frameNums.length;
         
         return frameNums[idx];
+    }
+
+    public int lastFrameNum() {
+        return frameNums[frameNums.length - 1];
     }
 
     public RawAction currRawAction() {
@@ -84,5 +87,9 @@ public class Scenario {
         } else {
             return rawActions[idx];
         }
+    }
+
+    public void reset() {
+        idx = -1;
     }
 }

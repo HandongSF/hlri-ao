@@ -92,13 +92,11 @@ public class Evaluator {
         Map<Integer, Long> record = respRecords.get(
                 AgentInfo.AgentType.forNumber(
                         rawAction.getAgentRawActionCase().getNumber()));
-
-        totalRespTime += System.currentTimeMillis() 
+        
+        latestRespTime = System.currentTimeMillis() 
                 - record.get(rawAction.getFrameNum());
-        LOGGER.info(
-                "current response time: {} ms", 
-                System.currentTimeMillis() 
-                        - record.get(rawAction.getFrameNum()));
+        totalRespTime += latestRespTime;
+       
         if (!(rawAction.getRawActionIsa()
                        .equals(RawActionISA.getDefaultInstance())
                 && rawAction.getRawActionIua() 
@@ -165,8 +163,9 @@ public class Evaluator {
     public void summary() {
         System.out.print("\n============================= Evaluation =============================\n");
         System.out.printf(
-                "resp: %.2f ms, sync: %.2f ms, acc: %.2f %%, fit: %.2f %%, trans: %.2f %%\n", 
+                "resp: %.2f(%.2f) ms, sync: %.2f ms, acc: %.2f %%, fit: %.2f %%, trans: %.2f %%\n", 
                 totalRespTime / scenarioCount,
+                latestRespTime,
                 totalSyncTime / syncCount,
                 ((float) numSuccessResp) / scenarioCount * 100,
                 ((float) numSuccessRout) / routCount * 100,

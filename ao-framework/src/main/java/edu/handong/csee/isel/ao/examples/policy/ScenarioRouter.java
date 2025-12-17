@@ -64,7 +64,6 @@ public class ScenarioRouter extends Router {
         idx = (idx + 1) % targets.length;
             
         if (idx == 0) {
-            System.out.println("TEST");
             notify(history);
         }
 

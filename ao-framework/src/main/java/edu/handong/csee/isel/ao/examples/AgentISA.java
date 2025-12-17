@@ -34,12 +34,26 @@ public class AgentISA extends Agent {
 
     @Override
     protected RawAction calcRawAction() {
-        int currFrameNum;
-        int scenarioFrameNum = scenario.nextFrameNum();
+        int currFrameNum = server.getData().getFrameNum();
+        int scenarioFrameNum; 
+
+        if (currFrameNum > scenario.lastFrameNum()) {
+            while (currFrameNum > scenario.lastFrameNum()) {
+                currFrameNum = server.getData().getFrameNum();
+            }
+
+            scenario.reset();
+        }
+
+        scenarioFrameNum = scenario.nextFrameNum();
+
+        while (currFrameNum > scenarioFrameNum) {
+            scenarioFrameNum = scenario.nextFrameNum();
+        }
     
-        do {
+        while (currFrameNum < scenarioFrameNum) {
             currFrameNum = server.getData().getFrameNum();
-        } while (currFrameNum != scenarioFrameNum);
+        } 
     
         return scenario.currRawAction();
     }
