@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -22,13 +23,16 @@ import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentOrchestrator implements AutoCloseable {
+    private final Logger LOGGER = LoggerFactory.getLogger("AO");
+    private final int NUM_AGENT = 2;
+    private final int NUM_FRAME = 30;
+
     private ActionReceivingServer server;
     private DataStoringClient client;
     private ROSSimulator simulator;
     private Router router;
     private Evaluator evaluator;
-    private Collection<Thread> threads;
-    private Logger logger;
+    private List<Thread> threads;
 
     public AgentOrchestrator(Path config) throws IOException {
         Integer port = new NetworkConfigExtractor(config).getServerPort();
@@ -38,17 +42,28 @@ public class AgentOrchestrator implements AutoCloseable {
         }
         
         server = new ActionReceivingServer(this, port);
-        client = new DataStoringClient(this);
+        client = new DataStoringClient(this, NUM_AGENT);
         simulator = new ROSSimulator(this);
         router = new Router();
-        evaluator = new Evaluator();
+        evaluator = new Evaluator(NUM_AGENT);
+
         threads = new ArrayList<>();
-        logger = LoggerFactory.getLogger(getClass());
+        threads.add(new Thread(
+                () -> {
+                    try {
+                        while (true) {
+                            Thread.sleep(30000); 
+                            evaluator.summary();
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }, 
+                "eval"));
     }
 
     public void run() throws IOException, InterruptedException {
         Runtime runtime = Runtime.getRuntime();
-         
         Thread shutdownHook = new Thread(
                 () -> { 
                     try {
@@ -58,18 +73,20 @@ public class AgentOrchestrator implements AutoCloseable {
                     }
                 },
                 "shutdown-hook");
-        
+
+        Thread.currentThread().setName("main");
         runtime.addShutdownHook(shutdownHook);
         
         server.start();
 
-        while (!client.ready());
+        while (!client.isReady());
 
         simulator.start();
+        threads.getFirst().start();
 
         server.awaitTermination(10, TimeUnit.MINUTES);
         
-        logger.info("Time limit exceeded");
+        LOGGER.info("Time limit exceeded");
         runtime.removeShutdownHook(shutdownHook);
     }
 
@@ -81,12 +98,17 @@ public class AgentOrchestrator implements AutoCloseable {
         client.addStub(type, info.getHost(), info.getPort());
         
         thread = new Thread(
-                () -> { 
+                () -> {
+                    int frameSent = 0;
+
                     while (!Thread.interrupted()) {
-                        client.sendData(type, 30);
+                        client.sendData(type, NUM_FRAME);
+                        frameSent += NUM_FRAME;
+
+                        evaluator.evalSync(frameSent);
                     }
-                    System.out.println("test"); 
-                });
+                },
+                "AO-" + type.toString().replace("AT_", ""));
         threads.add(thread);
         thread.start();
     }
@@ -96,40 +118,40 @@ public class AgentOrchestrator implements AutoCloseable {
             float accel, float angular, 
             float mag_str_x, float mag_str_y, 
             String target, String text,
-            byte[] header, byte[] format, byte[] data) {
+            byte[] header, byte[] format, byte[] voiceData) {
         for (AgentInfo.AgentType type
                 : router.route(
                         image, depth, accel, angular, 
                         mag_str_x, mag_str_y, target, 
-                        text, header, format, data)) {
-                            
-            switch (type) {
-                case AT_UNSPECIFIED:
+                        text, header, format, voiceData)) {
+            Data data;
 
+            switch (type) {
                 case AT_ISA:
-                    client.addData(
-                            type, 
-                            convertToClientFormat(
-                                    image, depth, frameNum, 
-                                    accel, angular, 
-                                    mag_str_x, mag_str_y, 
-                                    target, text));
+                    data = convertToClientFormat(
+                            image, depth, frameNum, 
+                            accel, angular, mag_str_x, mag_str_y, 
+                            target, text);
                     
                     break;
                 
                 case AT_IUA:
-                    client.addData(
-                            type, 
-                            convertToClientFormat(
-                                    image, depth, frameNum, 
-                                    header, format, data));
+                    data = convertToClientFormat(
+                            image, depth, frameNum, 
+                            header, format, voiceData);
 
                     break;
 
                 case AT_IOA:
+                    data = convertToClientFormat(image, depth, frameNum);
+
+                    break;
                 
-                case UNRECOGNIZED:
+                default:
+                    data = Data.getDefaultInstance();
             }
+
+            client.addData(type, data);
         }
     }
 
@@ -141,7 +163,6 @@ public class AgentOrchestrator implements AutoCloseable {
         Data.Builder dataBuilder = Data.newBuilder();
         DataISA.Builder dataIsaBuilder = dataBuilder.getDataIsaBuilder();
         
-        dataBuilder.setFrameNum(frameNum);
         dataIsaBuilder.getRgbdBuilder()
                       .setImage(ByteString.copyFrom(image))
                       .setDepth(ByteString.copyFrom(depth));
@@ -154,7 +175,7 @@ public class AgentOrchestrator implements AutoCloseable {
                       .setTarget(target)
                       .setText(text);
         
-        return dataBuilder.build();
+        return dataBuilder.setFrameNum(frameNum).build();
     }
 
     private Data convertToClientFormat(
@@ -163,7 +184,6 @@ public class AgentOrchestrator implements AutoCloseable {
         Data.Builder dataBuilder = Data.newBuilder();
         DataIUA.Builder dataIuaBuilder = dataBuilder.getDataIuaBuilder();
         
-        dataBuilder.setFrameNum(frameNum);
         dataIuaBuilder.getRgbdBuilder()
                       .setImage(ByteString.copyFrom(image))
                       .setDepth(ByteString.copyFrom(depth));
@@ -172,7 +192,19 @@ public class AgentOrchestrator implements AutoCloseable {
                       .setFormat(ByteString.copyFrom(format))
                       .setData(ByteString.copyFrom(data));
         
-        return dataBuilder.build();
+        return dataBuilder.setFrameNum(frameNum).build();
+    }
+
+    private Data convertToClientFormat(
+            byte[] image, byte[] depth, int frameNum) {
+        Data.Builder dataBuilder = Data.newBuilder();
+        
+        dataBuilder.getDataIoaBuilder()
+                   .getRgbdBuilder()
+                   .setImage(ByteString.copyFrom(image))
+                   .setDepth(ByteString.copyFrom(depth));
+        
+        return dataBuilder.setFrameNum(frameNum).build();
     }
 
     public void update(Data data) {
@@ -180,30 +212,43 @@ public class AgentOrchestrator implements AutoCloseable {
     }
 
     public void update(RawAction rawAction) {
-        evaluator.evaluate(rawAction);
-        logger.info(
-                "Receiving raw action from an agent ART: {}ms acc: {}%", 
-                evaluator.getAvgReactionTime(), evaluator.getAccuracy());
+        String action;
+
+        evaluator.evalResp(rawAction);
+        
         switch (rawAction.getAgentRawActionCase()) {
             case RAW_ACTION_ISA:
-                RawActionISA actionISA = rawAction.getRawActionIsa();
-                Linear linear = actionISA.getLinear();
-                Angular angular = actionISA.getAngular();
+                RawActionISA rawActionISA = rawAction.getRawActionIsa();
+                Linear linear = rawActionISA.getLinear();
+                Angular angular = rawActionISA.getAngular();
 
-                simulator.sendAction(
-                        convertToSimulatorFormat(
-                                linear.getX(), linear.getY(), 
-                                linear.getZ(),angular.getX(), 
-                                angular.getY(), angular.getZ()));
+                action = convertToSimulatorFormat(
+                        linear.getX(), linear.getY(), linear.getZ(),
+                        angular.getX(), angular.getY(), angular.getZ());
                 
                 break;
 
             case RAW_ACTION_IUA:
+                action = convertToSimulatorFormat(
+                        rawAction.getRawActionIua().getSpeech());
+                
+                break;
 
             case RAW_ACTION_IOA:
-            
+                RawActionIOA rawActionIOA = rawAction.getRawActionIoa();
+                Coordinate coord = rawActionIOA.getCoord();
+
+                action = convertToSimulatorFormat(
+                        rawActionIOA.getIntr().toString(), 
+                        coord.getX(), coord.getY(), coord.getZ());
+                
+                break;
+
             default:
+                action = "robot action";
         }
+
+        simulator.sendAction(action);
     }
 
     private String convertToSimulatorFormat(
@@ -211,13 +256,24 @@ public class AgentOrchestrator implements AutoCloseable {
             float angularX, float angularY, float angularZ) {
         return String.format(
                 "linear\n\tx: %f\n\ty: %f\n\tz: %f\n" 
-                        + "angular\n\tx: %f\n\ty: %f\n\tz: %f\n",
+                        + "angular\n\tx: %f\n\ty: %f\n\tz: %f",
                 linearX, linearY, linearZ, 
                 angularX, angularY, angularZ);
     }
 
+    private String convertToSimulatorFormat(String speech) {
+        return String.format("response\n\t%s", speech);
+    }
+
+    private String convertToSimulatorFormat(
+            String intr, float coordX, float coordY, float coordZ) {
+        return String.format(
+                "interaction\n\t%s\ncoordinate\n\tx: %f\n\ty: %f\n\tz: %f",
+                intr, coordX, coordY, coordZ);
+    }
+
     public void close() throws InterruptedException {
-        logger.info("Shutting down server and client");
+        LOGGER.info("Shutting down server and client");
         server.shutdown();
         
         for (Thread thread : threads) {

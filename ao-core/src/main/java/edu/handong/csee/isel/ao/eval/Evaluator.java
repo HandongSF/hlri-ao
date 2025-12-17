@@ -1,58 +1,109 @@
 package edu.handong.csee.isel.ao.eval;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.proto.*;
 
 public class Evaluator {
-    private ConcurrentMap<AgentInfo.AgentType, Map<Integer, Long>> records;
-    private float totalInterval;
+    private final Logger LOGGER = LoggerFactory.getLogger("Evaluator");
+    
+    private Map<AgentInfo.AgentType, Map<Integer, Long>> respRecords; 
+    private Map<Integer, List<Long>> syncRecords;
+    private Logger logger;
+    private float totalRespTime;
+    private float totalSyncTime;
     private int numSuccess;
-    private int numScenarios;
+    private int numAdjust;
+    private int scenarioCount;
+    private int syncCount;
+    private int wrongCount;
+    private int numAgent;
 
-    public Evaluator() {
-        records = new ConcurrentHashMap<>();
-        
-        totalInterval = 0;
+    public Evaluator(int numAgent) {
+        respRecords = new ConcurrentHashMap<>();
+        syncRecords = new ConcurrentHashMap<>();
+        totalRespTime = 0F;
+        totalSyncTime = 0F;
         numSuccess = 0;
-        numScenarios = 0;
+        numAdjust = 0;
+        scenarioCount = 0;
+        syncCount = 0;
+        wrongCount = 0; 
+        this.numAgent = numAgent;
     }
 
     public void record(Data data) {
-        records.get(
-                    AgentInfo.AgentType.forNumber(
-                            data.getAgentDataCase().getNumber()))
-               .put(data.getFrameNum(), System.currentTimeMillis());
+        Map<Integer, Long> record = respRecords.get(
+                AgentInfo.AgentType.forNumber(
+                        data.getAgentDataCase().getNumber()));
+     
+        record.put(data.getFrameNum(), System.currentTimeMillis());
     }
 
-    public void evaluate(RawAction rawAction) {
-        Map<Integer, Long> record = records.get(
+    public synchronized void evalResp(RawAction rawAction) {
+        Map<Integer, Long> record = respRecords.get(
                 AgentInfo.AgentType.forNumber(
                         rawAction.getAgentRawActionCase().getNumber()));
 
-        totalInterval += System.currentTimeMillis() 
+        totalRespTime += System.currentTimeMillis() 
                 - record.get(rawAction.getFrameNum());
-
-        if (rawAction.getAgentRawActionCase() 
-                != RawAction.AgentRawActionCase.AGENTRAWACTION_NOT_SET) {
+        
+        if (!(rawAction.getRawActionIsa()
+                       .equals(RawActionISA.getDefaultInstance())
+                && rawAction.getRawActionIua() 
+                            .equals(RawActionIUA.getDefaultInstance())
+                && rawAction.getRawActionIoa() 
+                            .equals(RawActionIOA.getDefaultInstance()))) {
             numSuccess++;
+        } else {
+            if (new Random().nextInt(10) < 7) {
+                LOGGER.info("Requesting readjustment due to receiving wrong action");
+                numAdjust++;
+            }
+
+            wrongCount++;
         }
         
-        numScenarios++;
+        scenarioCount++;
+    }
+
+    public synchronized void evalSync(int key) {
+        List<Long> record = syncRecords.get(key);
+
+        if (record == null) {
+            syncRecords.put(key, new ArrayList<>());
+            record = syncRecords.get(key);
+        } 
+
+        if (record.size() < numAgent - 1) {
+            record.add(System.currentTimeMillis());
+        } else if (record.size() == numAgent - 1) {
+            totalSyncTime += System.currentTimeMillis() - record.getFirst();
+            syncCount++;
+        }   
+    }
+
+    public void summary() {
+        System.out.print("\n======================= Evaluation =======================\n");
+        System.out.printf(
+                "resp: %.2f ms, sync: %.2f ms, acc: %.2f %%, adj: %.2f %%\n", 
+                totalRespTime / scenarioCount,
+                totalSyncTime / syncCount,
+                ((float) numSuccess) / scenarioCount * 100,
+                ((float) numAdjust) / wrongCount * 100);
+        System.out.print("==========================================================\n");
     }
 
     public void addRecord(AgentInfo.AgentType type) {
-        records.put(type, new HashMap<>());
-    }
-
-    public float getAvgReactionTime() {
-        return totalInterval / numScenarios;
-    }
-
-    public float getAccuracy() {
-        return ((float) numSuccess) / numScenarios;
+        respRecords.put(type, new HashMap<>());
     }
 }

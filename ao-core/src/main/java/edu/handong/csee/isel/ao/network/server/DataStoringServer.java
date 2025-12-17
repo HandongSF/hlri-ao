@@ -18,16 +18,18 @@ import edu.handong.csee.isel.ao.network.ErrorHandler;
 import edu.handong.csee.isel.proto.*;
 
 public class DataStoringServer {
+    private final Logger LOGGER; 
+
     private Server server;
     private DataStoringService service;
-    private Logger logger;
 
-    public DataStoringServer(int port) {
+    public DataStoringServer(int port, String name) {
+        LOGGER = LoggerFactory.getLogger(name + "-server");
+
         service = new DataStoringService();
         server = ServerBuilder.forPort(port)
                               .addService(service)
                               .build();
-        logger = LoggerFactory.getLogger(getClass());
     }
     
     private class DataStoringService 
@@ -38,7 +40,6 @@ public class DataStoringServer {
         @Override
         public StreamObserver<Data> sendData(
                 StreamObserver<Status> responseObserver) {
-            logger.info("Receiving data from AO client");
             return new StreamObserver<Data>() {
                 
                 @Override 
@@ -82,7 +83,7 @@ public class DataStoringServer {
     }
 
     public Server start() throws IOException {
-        logger.info("Starting Agent server");
+        LOGGER.info("Starting Agent server");
         return server.start();
     }
 

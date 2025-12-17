@@ -18,16 +18,16 @@ import edu.handong.csee.isel.ao.network.ErrorHandler;
 import edu.handong.csee.isel.proto.*;
 
 public class ActionReceivingServer {
+    private final Logger LOGGER = LoggerFactory.getLogger("AO-server");
+    
     private Server server;
     private AgentOrchestrator subscriber;
-    private Logger logger;
-
+    
     public ActionReceivingServer(AgentOrchestrator ao, int port) {
         server = ServerBuilder.forPort(port)
                               .addService(new ActionReceivingService())
                               .build();
         subscriber = ao;
-        logger = LoggerFactory.getLogger(getClass());
     }
 
     private class ActionReceivingService 
@@ -38,7 +38,7 @@ public class ActionReceivingServer {
         public void connect(
                 AgentInfo request, 
                 StreamObserver<Status> responseObserver) {
-            logger.info("Receiving connection request from an Agent");
+            LOGGER.info("Receiving connection request from an Agent");
             AgentInfo.AgentType type = request.getType();
 
             if (type == AgentInfo.AgentType.AT_UNSPECIFIED) {
@@ -73,6 +73,7 @@ public class ActionReceivingServer {
         @Override 
         public void sendRawAction(
                 RawAction request, StreamObserver<Status> responseObserver) {
+            LOGGER.info("Receiving raw action from an Agent");
             notifySubscriber(request);
 
             responseObserver.onNext(
@@ -92,7 +93,7 @@ public class ActionReceivingServer {
     }
 
     public void start() throws IOException {
-        logger.info("Starting AO server");
+        LOGGER.info("Starting AO server");
         server.start();
     }
 

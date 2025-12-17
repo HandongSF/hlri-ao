@@ -62,7 +62,11 @@
             <artifactId>javacv-platform</artifactId>
             <version>1.5.9</version>
         </dependency>
+<<<<<<< HEAD
         <!-- gson -->
+=======
+         <!-- gson -->
+>>>>>>> hb_ao
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
