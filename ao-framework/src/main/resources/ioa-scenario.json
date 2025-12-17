@@ -1,0 +1,22 @@
+{
+    "type": 3,
+    "frameNums": [ 1620, 1800, 1950, 2310, 3450, 360 ],
+    "rawActions": [ { "intr": 4,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 1620 },
+                    { "intr": 1,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 1800 },
+                    { "intr": 2,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 1950 },
+                    { "intr": 4,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 2310 },
+                    { "intr": 3,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 3450 },
+                    { "intr": 1,
+                      "coord": { "x": 7.0, "y": 7.0, "z": 7.0 },
+                      "frameNum": 360 } ]
+}

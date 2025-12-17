@@ -48,7 +48,7 @@ public class AgentISA extends Agent {
 
         try (Agent agent = new AgentISA(
                 Path.of(clazz.getResource("/isa-network.json").toURI()),
-                Path.of(clazz.getResource("/v2/isa-scenario.json").toURI()))) {
+                Path.of(clazz.getResource("/isa-scenario.json").toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();
