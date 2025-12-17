@@ -48,7 +48,7 @@ public class AgentIOA extends Agent {
 
         try (Agent agent = new AgentIOA(
                 Path.of(clazz.getResource("/ioa-network.json").toURI()),
-                Path.of(clazz.getResource("/v2/ioa-scenario.json").toURI()))) {
+                Path.of(clazz.getResource("/ioa-scenario.json").toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();

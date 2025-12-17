@@ -47,7 +47,7 @@ public class AgentIUA extends Agent {
 
         try (Agent agent = new AgentIUA(
                 Path.of(clazz.getResource("/iua-network.json").toURI()),
-                Path.of(clazz.getResource("/v1/iua-scenario.json").toURI()))) {
+                Path.of(clazz.getResource("/iua-scenario.json").toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();
