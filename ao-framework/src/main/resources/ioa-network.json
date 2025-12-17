@@ -1,0 +1,4 @@
+{
+    "server": { "port": 8083 },
+    "client": { "host": "localhost", "port": 8080 }
+}
