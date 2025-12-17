@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 import edu.handong.csee.isel.ao.Agent;
 import edu.handong.csee.isel.proto.*;
 
-public class AgentISA extends Agent {
+public class AgentIOA extends Agent {
     private Scenario scenario;
 
-    public AgentISA(Path networkConfig, Path scenarioConfig) 
+    public AgentIOA(Path networkConfig, Path scenarioConfig) 
             throws IOException {
-        super(networkConfig, "ISA");
+        super(networkConfig, "IOA");
 
         scenario = new Scenario(scenarioConfig);
     }
@@ -25,7 +25,7 @@ public class AgentISA extends Agent {
     protected void connect() throws UnknownHostException {
         client.connect(
                 AgentInfo.newBuilder()
-                         .setType(AgentInfo.AgentType.AT_ISA)
+                         .setType(AgentInfo.AgentType.AT_IOA)
                          .setHost(InetAddress.getLocalHost().getHostAddress())
                          .setPort(server.getPort())
                          .build());
@@ -39,16 +39,16 @@ public class AgentISA extends Agent {
         do {
             currFrameNum = server.getData().getFrameNum();
         } while (currFrameNum != scenarioFrameNum);
-    
+        
         return scenario.currRawAction();
     }
 
     public static void main(String[] args) {
-        Class<AgentISA> clazz = AgentISA.class;
+        Class<AgentIOA> clazz = AgentIOA.class;
 
-        try (Agent agent = new AgentISA(
-                Path.of(clazz.getResource("/isa-network.json").toURI()),
-                Path.of(clazz.getResource("/v2/isa-scenario.json").toURI()))) {
+        try (Agent agent = new AgentIOA(
+                Path.of(clazz.getResource("/ioa-network.json").toURI()),
+                Path.of(clazz.getResource("/v2/ioa-scenario.json").toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();
