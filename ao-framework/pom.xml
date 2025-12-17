@@ -13,10 +13,27 @@
     <groupId>edu.handong.csee.isel.ao</groupId>
     <artifactId>ao-framework</artifactId>
     <version>1.0.0</version>
-
-    <properties>
-        <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentISA</exec.mainClass>
-    </properties>
+    
+    <profiles>
+        <profile>
+            <id>isa</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentISA</exec.mainClass>
+            </properties>
+        </profile>
+        <profile>
+            <id>iua</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentIUA</exec.mainClass>
+            </properties>
+        </profile>
+        <profile>
+            <id>ioa</id>
+            <properties>
+                <exec.mainClass>edu.handong.csee.isel.ao.examples.AgentIOA</exec.mainClass>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
