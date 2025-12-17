@@ -15,7 +15,7 @@ public abstract class Agent implements AutoCloseable {
     protected DataStoringServer server;
     protected ActionReceivingClient client;
 
-    public Agent(Path config) throws IOException {
+    public Agent(Path config, String name) throws IOException {
         NetworkConfigExtractor extractor = new NetworkConfigExtractor(config);
         Integer serverPort = extractor.getServerPort();
         String clientHost = extractor.getClientHost();
@@ -26,8 +26,8 @@ public abstract class Agent implements AutoCloseable {
                     "Format of network config file is not valid");
         }
 
-        server = new DataStoringServer(serverPort);
-        client = new ActionReceivingClient(clientHost, clientPort);
+        server = new DataStoringServer(serverPort, name);
+        client = new ActionReceivingClient(clientHost, clientPort, name);
     }
 
     public void run() throws IOException {
