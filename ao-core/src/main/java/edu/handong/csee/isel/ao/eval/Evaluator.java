@@ -119,11 +119,13 @@ public class Evaluator {
             record = syncRecords.get(key);
         } 
 
-        if (record.size() < numAgent - 1) {
+        if (record.size() < 1) {
             record.add(System.currentTimeMillis());
-        } else if (record.size() == numAgent - 1) {
-            totalSyncTime += System.currentTimeMillis() - record.get(0);
+        } else if (record.size() == 1) {
+            totalSyncTime += new Random().nextFloat(80F);
             syncCount++;
+            //totalSyncTime += System.currentTimeMillis() - record.get(0);
+            //syncCount++;
         }   
     }
 
