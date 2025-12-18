@@ -124,8 +124,10 @@ message Coordinate {
 message RawActionIOA {
     enum Interaction {
         INTR_UNSPECIFIED = 0;
-        INTR_PICK_UP = 1;
-        INTR_PUT_DOWN = 2;
+        INTR_RECOGNIZE = 1;
+        INTR_PICK_UP = 2;
+        INTR_PUT_DOWN = 3;
+        INTR_OPEN_DOOR = 4;
     }
 
     RawActionIOA.Interaction intr = 1;
