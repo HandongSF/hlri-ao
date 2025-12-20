@@ -17,15 +17,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.ao.eval.Evaluator;
+import edu.handong.csee.isel.ao.examples.policy.ScenarioRouter;
+import edu.handong.csee.isel.ao.examples.policy.ScenarioScheduler;
 import edu.handong.csee.isel.ao.network.ROSSimulator;
 import edu.handong.csee.isel.ao.network.client.DataStoringClient;
 import edu.handong.csee.isel.ao.network.server.ActionReceivingServer;
 import edu.handong.csee.isel.ao.policy.Router;
 import edu.handong.csee.isel.ao.policy.Scheduler;
 import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
-import edu.handong.csee.isel.ao.utils.RoutingConfigExtractor;
 import edu.handong.csee.isel.ao.utils.TempData;
-import edu.handong.csee.isel.ao.examples.policy.ScenarioRouter;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentOrchestrator implements AutoCloseable {
@@ -37,14 +37,15 @@ public class AgentOrchestrator implements AutoCloseable {
     private ActionReceivingServer server;
     private DataStoringClient client;
     private ROSSimulator simulator;
-    private Router router;
     private Scheduler scheduler;
-    private Queue<TempData> queue;
+    private Router router;
     private Evaluator evaluator;
+    private Queue<TempData> queue;
     private List<Thread> threads;
 
-    public AgentOrchestrator(Path networkConfig, Path routingConfig) 
-            throws IOException {
+    public AgentOrchestrator(
+            Path networkConfig, Path SchedulingConfig, Path routingConfig) 
+                    throws IOException {
         Integer port 
                 = new NetworkConfigExtractor(networkConfig).getServerPort();
         
@@ -55,8 +56,8 @@ public class AgentOrchestrator implements AutoCloseable {
         server = new ActionReceivingServer(this, port);
         client = new DataStoringClient(this, NUM_AGENT);
         simulator = new ROSSimulator(this);
+        scheduler = new ScenarioScheduler(SchedulingConfig);
         router = new ScenarioRouter(this, routingConfig);
-        scheduler = new Scheduler(routingConfig);
         evaluator = new Evaluator(routingConfig, NUM_AGENT);
         queue = new ConcurrentLinkedQueue<>();
 
@@ -198,13 +199,10 @@ public class AgentOrchestrator implements AutoCloseable {
         
         thread = new Thread(
                 () -> {
-                    int frameSent = 0;
-
                     while (!Thread.interrupted()) {
                         client.sendData(type, NUM_FRAME);
-                        frameSent += NUM_FRAME;
-
-                        evaluator.evalSync(frameSent);
+                        
+                        //evaluator.evalSync();
                     }
                 },
                 "AO-" + type.toString().replace("AT_", ""));
@@ -214,6 +212,10 @@ public class AgentOrchestrator implements AutoCloseable {
 
     public void update(AgentInfo.AgentType[] decision) {
         evaluator.evalRout(decision);
+    }
+
+    public void update() {
+        evaluator.evalSync();
     }
 
     public void update(boolean[] history) {
@@ -238,14 +240,14 @@ public class AgentOrchestrator implements AutoCloseable {
                 Angular angular = rawActionISA.getAngular();
 
                 return String.format(
-                        "linear\n\tx: %f\n\ty: %f\n\tz: %f\n" 
-                                + "angular\n\tx: %f\n\ty: %f\n\tz: %f",
+                        "linear\n\tx: %.2f\n\ty: %.2f\n\tz: %.2f\n" 
+                                + "angular\n\tx: %.2f\n\ty: %.2f\n\tz: %.2f\n",
                          linear.getX(), linear.getY(), linear.getZ(), 
                          angular.getX(), angular.getY(), angular.getZ());
                 
             case RAW_ACTION_IUA:
                 return String.format(
-                        "response\n\t%s", 
+                        "response\n\t%s\n", 
                         action.getRawActionIua().getSpeech());
                 
             case RAW_ACTION_IOA:
@@ -254,7 +256,7 @@ public class AgentOrchestrator implements AutoCloseable {
 
                 return String.format(
                         "interaction\n\t%s\n"
-                                + "coordinate\n\tx: %f\n\ty: %f\n\tz: %f",
+                                + "coordinate\n\tx: %.2f\n\ty: %.2f\n\tz: %.2f\n",
                         rawActionIOA.getIntr(), coord.getX(), 
                         coord.getY(), coord.getZ());
                 
@@ -283,6 +285,8 @@ public class AgentOrchestrator implements AutoCloseable {
     public static void main(String[] args) {
         try (AgentOrchestrator ao = new AgentOrchestrator(
                 Path.of(AgentOrchestrator.class.getResource("/ao-network.json")
+                                               .toURI()),
+                Path.of(AgentOrchestrator.class.getResource("/ao-scheduling.json")
                                                .toURI()),
                 Path.of(AgentOrchestrator.class.getResource("/ao-routing.json")
                                                .toURI()))) {
