@@ -12,30 +12,22 @@ import edu.handong.csee.isel.proto.*;
 public class Scenario {
     private int[] frameNums;
     private RawAction[] rawActions;
-    private AgentInfo.AgentType type;
     private Random random;
+    private AgentInfo.AgentType type;
     private int idx;
 
-    public Scenario(Path config) throws IOException {
+    public Scenario(Path config, AgentInfo.AgentType type) throws IOException {
         ScenarioConfigExtractor extractor = new ScenarioConfigExtractor(config);
 
-        frameNums = extractor.getFrameNums();
+        frameNums = extractor.extractFrameNums();
 
         if (frameNums == null) {
             throw new IOException(
                     "Format of scenario config file is not valid "
                             + "(check frameNums field)");
         }
-
-        type = extractor.getAgentType();
-
-        if (type == null) {
-            throw new IOException(
-                    "Format of scenario config file is not valid "
-                            + "(check type field)");
-        }
-
-        rawActions = extractor.getRawActions(type);
+    
+        rawActions = extractor.extractRawActions(type);
 
         if (rawActions == null) {
             throw new IOException(
@@ -44,6 +36,7 @@ public class Scenario {
         }
 
         random = new Random();
+        this.type = type;
         idx = -1;
     }
 
@@ -53,12 +46,8 @@ public class Scenario {
         return frameNums[idx];
     }
 
-    public int lastFrameNum() {
-        return frameNums[frameNums.length - 1];
-    }
-
     public RawAction currRawAction() {
-        if (random.nextInt(10) == 0) {
+        if (random.nextInt(12) == 0) {
             RawAction.Builder builder = RawAction.newBuilder();
 
             switch (type) {
@@ -82,14 +71,10 @@ public class Scenario {
                 
                 default:
             }
-
+            
             return builder.setFrameNum(frameNums[idx]).build();
         } else {
             return rawActions[idx];
         }
-    }
-
-    public void reset() {
-        idx = -1;
     }
 }
