@@ -2,9 +2,6 @@ package edu.handong.csee.isel.ao.examples.utils;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import com.google.gson.JsonElement;
@@ -19,7 +16,7 @@ public class ScenarioConfigExtractor extends ConfigExtractor {
         super(config);
     }
     
-    public int[] getFrameNums() {
+    public int[] extractFrameNums() {
         try {
             return json.getAsJsonObject()
                        .get("frameNums")
@@ -33,18 +30,7 @@ public class ScenarioConfigExtractor extends ConfigExtractor {
         }
     }
 
-    public AgentInfo.AgentType getAgentType() {
-        try {
-            return AgentInfo.AgentType.forNumber(
-                    json.getAsJsonObject().get("type").getAsInt());
-        } catch (IllegalStateException 
-                | NullPointerException 
-                | ClassCastException e) {
-            return null;
-        }
-    }
-
-    public RawAction[] getRawActions(AgentInfo.AgentType type) {
+    public RawAction[] extractRawActions(AgentInfo.AgentType type) {
         try {
             Stream<JsonElement> JsonElementStream = json.getAsJsonObject()
                                                         .get("rawActions")
