@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.ao.eval.Evaluator;
+import edu.handong.csee.isel.ao.examples.eval.ScenarioEvaluator;
 import edu.handong.csee.isel.ao.examples.policy.ScenarioRouter;
 import edu.handong.csee.isel.ao.examples.policy.ScenarioScheduler;
 import edu.handong.csee.isel.ao.network.ROSSimulator;
@@ -58,7 +59,7 @@ public class AgentOrchestrator implements AutoCloseable {
         simulator = new ROSSimulator(this);
         scheduler = new ScenarioScheduler(SchedulingConfig);
         router = new ScenarioRouter(this, routingConfig);
-        evaluator = new Evaluator(routingConfig, NUM_AGENT);
+        evaluator = new ScenarioEvaluator(routingConfig);
         queue = new ConcurrentLinkedQueue<>();
 
         threads = new ArrayList<>();
@@ -210,8 +211,8 @@ public class AgentOrchestrator implements AutoCloseable {
         thread.start();
     }
 
-    public void update(AgentInfo.AgentType[] decision) {
-        evaluator.evalRout(decision);
+    public void update(AgentInfo.AgentType[] prediction) {
+        evaluator.evalFit(prediction);
     }
 
     public void update() {
@@ -219,15 +220,15 @@ public class AgentOrchestrator implements AutoCloseable {
     }
 
     public void update(boolean[] history) {
-        evaluator.evalTransfer(history);
+        evaluator.evalTrans(history);
     }
                
     public void update(Data data) {
-        evaluator.record(data);
+        evaluator.recordSendingTime(data);
     }
 
     public void update(RawAction action) {
-        evaluator.evalResp(action);
+        evaluator.evalRespAndAcc(action);
 
         simulator.sendAction(convertToSimulatorFormat(action));
     }
