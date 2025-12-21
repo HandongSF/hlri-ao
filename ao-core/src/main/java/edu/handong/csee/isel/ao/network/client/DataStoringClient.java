@@ -42,7 +42,7 @@ public class DataStoringClient {
                 || type == AgentInfo.AgentType.UNRECOGNIZED) {
             return;
         }
-        
+
         CountDownLatch latch = new CountDownLatch(1);
         StreamObserver<Status> responseObserver = new StreamObserver<>() {
         
@@ -58,6 +58,8 @@ public class DataStoringClient {
 
             @Override 
             public void onCompleted() {
+                notifySubscriber();
+
                 latch.countDown();
             }
         };
@@ -70,8 +72,9 @@ public class DataStoringClient {
             if (!queue.isEmpty()) {
                 Data data = queue.poll();
                 
-                requestObserver.onNext(data);
                 notify(data);
+
+                requestObserver.onNext(data);
                 sent++;
             } 
         }
@@ -112,6 +115,10 @@ public class DataStoringClient {
 
     public void notify(Data data) {
         subscriber.update(data);
+    }
+
+    public void notifySubscriber() {
+        subscriber.update();
     }
 
     public void shutdown() throws InterruptedException {
