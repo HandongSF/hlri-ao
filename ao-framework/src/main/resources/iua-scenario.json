@@ -1,5 +1,4 @@
 {
-    "type": 2,
     "frameNums": [ 60, 480 ],
     "rawActions": [ { "speech": "What can I help you?",
                       "frameNum": 60 },
