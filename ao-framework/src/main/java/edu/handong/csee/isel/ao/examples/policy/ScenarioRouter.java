@@ -12,16 +12,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonParser;
 
-import edu.handong.csee.isel.ao.utils.TempData;
 import edu.handong.csee.isel.ao.AgentOrchestrator;
+import edu.handong.csee.isel.ao.examples.utils.RoutingConfigExtractor;
 import edu.handong.csee.isel.ao.policy.Router;
-import edu.handong.csee.isel.ao.utils.RoutingConfigExtractor;
+import edu.handong.csee.isel.ao.utils.TempData;
 import edu.handong.csee.isel.proto.*;
 
 public class ScenarioRouter extends Router {
     private final int NUM_AGENT = 3;
 
-    private AgentInfo.AgentType[][] targets;
+    private AgentInfo.AgentType[][] labels;
     private boolean[] history;
     private AgentOrchestrator subscriber;
     private Random random;
@@ -31,15 +31,15 @@ public class ScenarioRouter extends Router {
             throws IOException {
         RoutingConfigExtractor extractor = new RoutingConfigExtractor(config);
         
-        targets = extractor.getTargets();
+        labels = extractor.extractTargets();
 
-        if (targets == null) {
+        if (labels == null) {
             throw new IOException(
                     "Format of routing config file is not valid "
                             + "(check targets field)");
         }
 
-        history = new boolean[targets.length];
+        history = new boolean[labels.length];
         subscriber = ao;
         random = new Random();
         idx = 0;
@@ -47,31 +47,30 @@ public class ScenarioRouter extends Router {
 
     @Override
     public AgentInfo.AgentType[] route(List<TempData> data) {
-        AgentInfo.AgentType[] decision;
+        AgentInfo.AgentType[] prediction = labels[idx];
 
-        if (random.nextInt(10) < 2) {
-            decision = new AgentInfo.AgentType[] { 
-                    AgentInfo.AgentType.forNumber(
-                            random.nextInt(NUM_AGENT) + 1)};
+        if (random.nextInt(10) < 1) {
+            notify(new AgentInfo.AgentType[] { 
+                    AgentInfo.AgentType.AT_UNSPECIFIED });
+            
             history[idx] = false;
         } else {
-            decision = targets[idx];
+            notify(prediction);
+            
             history[idx] = true;
         }
 
-        notify(decision);
-
-        idx = (idx + 1) % targets.length;
+        idx = (idx + 1) % labels.length;
             
         if (idx == 0) {
             notify(history);
         }
 
-        return decision;
+        return prediction;
     }
 
-    private void notify(AgentInfo.AgentType[] decision) {
-        subscriber.update(decision);
+    private void notify(AgentInfo.AgentType[] prediction) {
+        subscriber.update(prediction);
     }
 
     private void notify(boolean[] history) {
