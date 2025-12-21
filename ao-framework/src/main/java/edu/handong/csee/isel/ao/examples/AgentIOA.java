@@ -19,7 +19,7 @@ public class AgentIOA extends Agent {
             throws IOException {
         super(networkConfig, "IOA");
 
-        scenario = new Scenario(scenarioConfig);
+        scenario = new Scenario(scenarioConfig, AgentInfo.AgentType.AT_IOA);
     }
 
     @Override
@@ -34,12 +34,12 @@ public class AgentIOA extends Agent {
 
     @Override
     protected RawAction calcRawAction() {
-        int currFrameNum;
-        int scenarioFrameNum = scenario.nextFrameNum();
-    
+        int dataFrameNum;
+        int scenarioFrameNum = scenario.nextFrameNum(); 
+
         do {
-            currFrameNum = server.getData().getFrameNum();
-        } while (currFrameNum != scenarioFrameNum);
+            dataFrameNum = server.getData().getFrameNum();
+        } while (dataFrameNum < scenarioFrameNum);
         
         return scenario.currRawAction();
     }

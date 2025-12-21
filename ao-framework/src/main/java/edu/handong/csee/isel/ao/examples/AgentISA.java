@@ -19,7 +19,7 @@ public class AgentISA extends Agent {
             throws IOException {
         super(networkConfig, "ISA");
 
-        scenario = new Scenario(scenarioConfig);
+        scenario = new Scenario(scenarioConfig, AgentInfo.AgentType.AT_ISA);
     }
 
     @Override
@@ -34,36 +34,22 @@ public class AgentISA extends Agent {
 
     @Override
     protected RawAction calcRawAction() {
-        int currFrameNum = server.getData().getFrameNum();
-        int scenarioFrameNum; 
+        int dataFrameNum;
+        int scenarioFrameNum = scenario.nextFrameNum(); 
 
-        if (currFrameNum > scenario.lastFrameNum()) {
-            while (currFrameNum > scenario.lastFrameNum()) {
-                currFrameNum = server.getData().getFrameNum();
-            }
-
-            scenario.reset();
-        }
-
-        scenarioFrameNum = scenario.nextFrameNum();
-
-        while (currFrameNum > scenarioFrameNum) {
-            scenarioFrameNum = scenario.nextFrameNum();
-        }
-    
-        while (currFrameNum < scenarioFrameNum) {
-            currFrameNum = server.getData().getFrameNum();
-        } 
-    
+        do {
+            dataFrameNum = server.getData().getFrameNum();
+        } while (dataFrameNum < scenarioFrameNum);
+        
         return scenario.currRawAction();
     }
 
     public static void main(String[] args) {
-        Class<AgentISA> clazz = AgentISA.class;
-
         try (Agent agent = new AgentISA(
-                Path.of(clazz.getResource("/isa-network.json").toURI()),
-                Path.of(clazz.getResource("/isa-scenario.json").toURI()))) {
+                Path.of(AgentISA.class.getResource("/isa-network.json")
+                                      .toURI()),
+                Path.of(AgentISA.class.getResource("/isa-scenario.json")
+                                      .toURI()))) {
             agent.run();
         } catch (Exception e) {
             e.printStackTrace();

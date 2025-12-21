@@ -18,7 +18,7 @@ public class AgentIUA extends Agent {
     public AgentIUA(Path networkConfig, Path scenarioConfig) throws IOException {
         super(networkConfig, "IUA");
 
-        scenario = new Scenario(scenarioConfig);
+        scenario = new Scenario(scenarioConfig, AgentInfo.AgentType.AT_IUA);
     }
 
     @Override
@@ -33,12 +33,12 @@ public class AgentIUA extends Agent {
 
     @Override
     protected RawAction calcRawAction() {
-        int currFrameNum;
-        int scenarioFrameNum = scenario.nextFrameNum();
-    
+        int dataFrameNum;
+        int scenarioFrameNum = scenario.nextFrameNum(); 
+
         do {
-            currFrameNum = server.getData().getFrameNum();
-        } while (currFrameNum != scenarioFrameNum);
+            dataFrameNum = server.getData().getFrameNum();
+        } while (dataFrameNum < scenarioFrameNum);
         
         return scenario.currRawAction();
     }
