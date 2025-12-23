@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -17,14 +16,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.ao.eval.Evaluator;
-import edu.handong.csee.isel.ao.examples.eval.ScenarioEvaluator;
-import edu.handong.csee.isel.ao.examples.policy.ScenarioRouter;
-import edu.handong.csee.isel.ao.examples.policy.ScenarioScheduler;
+import edu.handong.csee.isel.ao.eval.ScenarioEvaluator;
 import edu.handong.csee.isel.ao.network.ROSSimulator;
 import edu.handong.csee.isel.ao.network.client.DataStoringClient;
 import edu.handong.csee.isel.ao.network.server.ActionReceivingServer;
-import edu.handong.csee.isel.ao.policy.Router;
-import edu.handong.csee.isel.ao.policy.Scheduler;
+import edu.handong.csee.isel.ao.policy.route.Router;
+import edu.handong.csee.isel.ao.policy.route.ScenarioRouter;
+import edu.handong.csee.isel.ao.policy.schedule.Scheduler;
+import edu.handong.csee.isel.ao.policy.schedule.ScenarioScheduler;
 import edu.handong.csee.isel.ao.utils.NetworkConfigExtractor;
 import edu.handong.csee.isel.ao.utils.TempData;
 import edu.handong.csee.isel.proto.*;
@@ -32,7 +31,6 @@ import edu.handong.csee.isel.proto.*;
 public class AgentOrchestrator implements AutoCloseable {
     private final Logger LOGGER = LoggerFactory.getLogger("AO");
     private final int NUM_AGENT = 3;
-    private final int NUM_FRAME = 30;
     private final int EVAL_INTERVAL = 30000;
 
     private ActionReceivingServer server;
@@ -48,10 +46,12 @@ public class AgentOrchestrator implements AutoCloseable {
             Path networkConfig, Path SchedulingConfig, Path routingConfig) 
                     throws IOException {
         Integer port 
-                = new NetworkConfigExtractor(networkConfig).getServerPort();
+                = new NetworkConfigExtractor(networkConfig).extractServerPort();
         
         if (port == null) {
-            throw new IOException("Format of the config file is not valid");
+            throw new IOException(
+                    "Format of the config file is not valid"
+                    + "(check server.port field)");
         }
         
         server = new ActionReceivingServer(this, port);
@@ -110,7 +110,7 @@ public class AgentOrchestrator implements AutoCloseable {
     private void orchest() {
         AgentInfo.AgentType[] targets;
         List<TempData> tempDataList = new ArrayList<>();
-        int numFrame = scheduler.nextNumFrame();
+        int numFrame = scheduler.nextNumFrames();
     
         while (tempDataList.size() < numFrame) {
             if (!queue.isEmpty()) {
@@ -201,7 +201,8 @@ public class AgentOrchestrator implements AutoCloseable {
         thread = new Thread(
                 () -> {
                     while (!Thread.interrupted()) {
-                        client.sendData(type, NUM_FRAME);
+                        client.sendData(
+                                type, scheduler.nextNumFramesForType(type));
                         
                         //evaluator.evalSync();
                     }
