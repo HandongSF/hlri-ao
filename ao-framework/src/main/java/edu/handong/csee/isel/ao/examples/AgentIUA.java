@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.handong.csee.isel.ao.Agent;
-import edu.handong.csee.isel.ao.examples.policy.Scenario;
 import edu.handong.csee.isel.proto.*;
 
 public class AgentIUA extends Agent {
