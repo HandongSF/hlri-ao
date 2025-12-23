@@ -1,7 +1,6 @@
 # AO: Agent Orchestration
 
 ## A Coordination Layer for Human-Level Robot Intelligence (HLRI)
-
 Agent Orchestration (AO) is a unified coordination layer designed to integrate
 and orchestrate multiple adaptive AI agents within a Human-Level Robot
 Intelligence (HLRI) system.
