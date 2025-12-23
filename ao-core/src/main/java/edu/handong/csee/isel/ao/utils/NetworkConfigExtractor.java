@@ -9,11 +9,11 @@ public class NetworkConfigExtractor extends ConfigExtractor {
         super(config);
     }
 
-    public Integer getServerPort() {
-        return getPort("server");
+    public Integer extractServerPort() {
+        return extractPortFrom("server");
     }
 
-    public String getClientHost() {
+    public String extractClientHost() {
          try {
             return json.getAsJsonObject()
                        .getAsJsonObject("client")
@@ -26,11 +26,11 @@ public class NetworkConfigExtractor extends ConfigExtractor {
         }
     }
 
-    public Integer getClientPort() {
-        return getPort("client");
+    public Integer extractClientPort() {
+        return extractPortFrom("client");
     }
 
-    private Integer getPort(String key) {
+    private Integer extractPortFrom(String key) {
         try {
             return json.getAsJsonObject()
                        .getAsJsonObject(key)
