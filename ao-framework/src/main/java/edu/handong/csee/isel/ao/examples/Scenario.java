@@ -1,4 +1,4 @@
-package edu.handong.csee.isel.ao.examples.policy;
+package edu.handong.csee.isel.ao.examples;
 
 import java.io.IOException;
 import java.nio.file.Path;
