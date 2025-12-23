@@ -19,14 +19,12 @@
     </properties>
 
     <build>
-        
-
         <plugins>
             <!-- protobuf plugin -->
             <!-- generate protobuf message and grpc stub source code from -->
             <!-- proto files -->
             <!-- execute goal `generate` in the generate-resources phase of -->
-            <!-- the default lifecylcle -->
+            <!-- default lifecylcle -->
             <plugin>
                 <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
@@ -39,18 +37,6 @@
                         </goals>
                     </execution>
                 </executions>     
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <compileSourceRoots>
-                        <compileSourceRoot>${basedir}/src/main/java</compileSourceRoot>
-                        <compileSourceRoot>${basedir}/../ao-framework/src/main/java</compileSourceRoot>
-                        <compileSourceRoot>${basedir}/../target/</compileSourceRoot>
-                    </compileSourceRoots>
-                </configuration>
             </plugin>
         </plugins>
     </build>
