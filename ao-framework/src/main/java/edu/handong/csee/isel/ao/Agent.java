@@ -17,9 +17,9 @@ public abstract class Agent implements AutoCloseable {
 
     public Agent(Path config, String name) throws IOException {
         NetworkConfigExtractor extractor = new NetworkConfigExtractor(config);
-        Integer serverPort = extractor.getServerPort();
-        String clientHost = extractor.getClientHost();
-        Integer clientPort = extractor.getClientPort();
+        Integer serverPort = extractor.extractServerPort();
+        String clientHost = extractor.extractClientHost();
+        Integer clientPort = extractor.extractClientPort();
 
         if (serverPort == null || clientHost == null || clientPort == null) {
             throw new IOException(
